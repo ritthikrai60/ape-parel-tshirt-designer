@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Task Contract Schema",
+  "type": "object",
+  "properties": {
+    "taskId": {
+      "type": "string",
+      "description": "Unique identifier for the task"
+    },
+    "objective": {
+      "type": "string"
+    },
+    "businessValue": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "nonGoals": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "owner": {
+      "type": "string"
+    },
+    "reviewers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "expectedFiles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "requiredTests": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["READY", "IN_PROGRESS", "REVIEW", "VERIFYING", "PASS", "FAILED", "BLOCKED", "NEEDS_HUMAN_DECISION"]
+    },
+    "evidence": {
+      "type": "string"
+    }
+  },
+  "required": ["taskId", "objective", "owner", "status", "acceptanceCriteria"]
+}
