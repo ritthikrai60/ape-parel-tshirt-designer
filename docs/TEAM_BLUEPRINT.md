@@ -15,13 +15,44 @@ Prepared by **Agents Factory** on 2026-10-10.
 
 ---
 
-## 2. Factory Agent Team Composition
+## 2. Factory Agent Hierarchy & Subordinate Squads
 
-| Role | Agent Identifier | Mission & Responsibilities | Quality Gate Authority |
-| :--- | :--- | :--- | :--- |
-| **Technical Lead** | `tech_lead_agent` | Architecture, Next.js 14 App Router, Prisma ORM, Three.js 3D Viewport, Pricing Engine, and Production Export. | Implementation Owner for TASK-001 through TASK-007 |
-| **Code Reviewer** | `code_reviewer_agent` | Architectural compliance, server-side RBAC validation, SVG/file upload sanitization, transactional atomicity, idempotency. | Approver for Architecture & Security Gates |
-| **QA Engineer** | `qa_engineer_agent` | Automated test suite execution (`vitest`), benchmark calculation verification (THB 410), build verification, regression checks. | Approver for Acceptance Criteria & Test Evidence Gates |
+```
+                       ┌─────────────────────────┐
+                       │   FACTORY ORCHESTRATOR  │
+                       └────────────┬────────────┘
+                                    │
+       ┌────────────────────────────┼────────────────────────────┐
+       ▼                            ▼                            ▼
+┌──────────────┐             ┌──────────────┐             ┌──────────────┐
+│  TECH LEAD   │             │ CODE REVIEW  │             │ QA ENGINEER  │
+│ (Lead Eng.)  │             │ (Sec/Arch)   │             │ (Verify/Test)│
+└──────┬───────┘             └──────┬───────┘             └──────┬───────┘
+       │                            │                            │
+       ├─► database_engineer        ├─► security_auditor         ├─► pricing_royalty_tester
+       ├─► studio_3d_engineer       └─► domain_integrity_reviewer└─► e2e_integration_tester
+       └─► core_fullstack_engineer
+```
+
+### A. Technical Lead Squad (`tech_lead_agent`)
+1. **`database_engineer` (Prisma & Data Architect):**
+   - Designs `prisma/schema.prisma` across all 7 domains, indexes, migrations, and deterministic seed script `prisma/seed.mjs`.
+2. **`studio_3d_engineer` (3D WebGL & Graphics Specialist):**
+   - Implements Three.js garment viewport (`GarmentPreview3D.tsx`), `tshirt.obj` loading, OrbitControls, 3-point lighting rig, dynamic 1024x1024 CanvasTexture UV projection, and high-res transparent 2D canvas without print boundary constraints.
+3. **`core_fullstack_engineer` (Next.js & API Specialist):**
+   - Implements Next.js 14 App Router pages (`/marketplace`, `/artwork/[id]`, `/studio/new`, `/account/orders`, `/creator/*`, `/supplier/*`, `/admin/*`), Tailwind CSS streetwear UI, and API routes.
+
+### B. Code Reviewer Squad (`code_reviewer_agent`)
+1. **`security_auditor` (Security & Authorization Specialist):**
+   - Audits server-side RBAC, verifies server recalculation of pricing to prevent frontend tampering, sanitizes SVGs, and protects private assets.
+2. **`domain_integrity_reviewer` (Modular Monolith & Transaction Specialist):**
+   - Verifies domain modularity, atomic database transactions for orders and royalties, and idempotency to prevent duplicate obligations.
+
+### C. QA Engineer Squad (`qa_engineer_agent`)
+1. **`pricing_royalty_tester` (Financial & Calculation Test Specialist):**
+   - Writes and executes Vitest unit tests verifying the exact THB 410 benchmark (฿150 + ฿80 + ฿15 + ฿40 + ฿125), quantity scaling, and royalty ledger accounting.
+2. **`e2e_integration_tester` (Build & User Journey Specialist):**
+   - Verifies TypeScript compilation (`npx tsc --noEmit`), Next.js production builds (`npm run build`), API route health checks, and end-to-end user flows.
 
 ---
 
