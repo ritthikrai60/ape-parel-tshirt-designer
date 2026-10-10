@@ -1,0 +1,31 @@
+﻿
+> ape-parel@0.1.0 test
+> vitest run
+
+node.exe : [33mThe CJS build of Vite's Node API is deprecated. See 
+https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([33mThe CJS bu...e details.[39m:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+[7m[1m[36m RUN [39m[22m[27m [36mv1.6.1[39m [90mD:/Coding Projects/ape-parel tshirt[39m
+
+ [32m✓[39m src/lib/__tests__/orders_royalties_challenger.test.ts [2m ([22m[2m19 tests[22m[2m)[22m[33m 566[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/orders_royalties.test.ts [2m ([22m[2m19 tests[22m[2m)[22m[90m 267[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/orders_api_adversarial.test.ts [2m ([22m[2m33 tests[22m[2m)[22m[90m 197[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/pricing_challenger.test.ts [2m ([22m[2m44 tests[22m[2m)[22m[90m 161[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/portals_marketplace_challenger.test.ts [2m ([22m[2m19 tests[22m[2m)[22m[90m 215[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/pricing_adversarial.test.ts [2m ([22m[2m31 tests[22m[2m)[22m[90m 83[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/studio_challenger.test.ts [2m ([22m[2m12 tests[22m[2m)[22m[90m 126[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/portals_marketplace.test.ts [2m ([22m[2m18 tests[22m[2m)[22m[90m 104[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/studio_pipeline.test.ts [2m ([22m[2m12 tests[22m[2m)[22m[90m 98[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/pricing.test.ts [2m ([22m[2m11 tests[22m[2m)[22m[90m 59[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m      Tests [22m [1m[32m218 passed[39m[22m[90m (218)[39m
+[2m   Start at [22m 09:08:24
+[2m   Duration [22m 5.12s[2m (transform 265ms, setup 1ms, collect 1.09s, tests 1.88s, environment 2ms, prepare 923ms)[22m
+

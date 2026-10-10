@@ -1,0 +1,245 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  name            String
+  role            String           @default("CUSTOMER") // CUSTOMER, CREATOR, SUPPLIER, ADMIN
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  creatorProfile  CreatorProfile?
+  supplierProfile SupplierProfile?
+  designs         DesignDocument[]
+  orders          Order[]
+  auditEvents     AuditEvent[]
+}
+
+model CreatorProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug          String    @unique
+  displayName   String
+  bio           String?
+  avatarUrl     String?
+  website       String?
+  payoutDetails String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  artworks      Artwork[]
+}
+
+model SupplierProfile {
+  id               String            @id @default(cuid())
+  userId           String            @unique
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug             String            @unique
+  companyName      String
+  description      String?
+  location         String
+  contactEmail     String
+  contactPhone     String?
+  leadTimeDays     Int               @default(5)
+  minOrderQuantity Int               @default(1)
+  verified         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  products         GarmentProduct[]
+  printingServices PrintingService[]
+  orders           Order[]
+}
+
+model Artwork {
+  id               String              @id @default(cuid())
+  creatorId        String
+  creator          CreatorProfile      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  category         String              @default("ILLUSTRATION") // MASCOT, TYPOGRAPHY, ILLUSTRATION, PATTERN, LOGO
+  previewUrl       String
+  originalUrl      String?
+  mimeType         String              @default("image/png")
+  tags             String?
+  status           String              @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
+  moderationStatus String              @default("APPROVED") // PENDING, APPROVED, REJECTED
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  licenseOptions   LicenseOption[]
+  obligations      RoyaltyObligation[]
+}
+
+model LicenseOption {
+  id             String              @id @default(cuid())
+  artworkId      String
+  artwork        Artwork             @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  name           String
+  price          Int // in THB
+  commercialUse  Boolean             @default(true)
+  terms          String?
+  scope          String              @default("PER_GARMENT") // PER_GARMENT, UNLIMITED
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  obligations    RoyaltyObligation[]
+}
+
+model GarmentProduct {
+  id             String           @id @default(cuid())
+  supplierId     String
+  supplier       SupplierProfile  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  sku            String           @unique
+  name           String
+  description    String?
+  fabric         String           @default("100% Combed Cotton")
+  weightGsm      Int              @default(240)
+  fit            String           @default("oversized") // regular, oversized, boxy
+  neckline       String           @default("crew") // crew, v-neck, polo
+  basePrice      Int              @default(150) // in THB
+  packagingPrice Int              @default(15) // in THB
+  shippingPrice  Int              @default(40) // in THB
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  variants       GarmentVariant[]
+  designs        DesignDocument[]
+}
+
+model GarmentVariant {
+  id              String         @id @default(cuid())
+  productId       String
+  product         GarmentProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku             String         @unique
+  colorName       String
+  colorHex        String
+  size            String // S, M, L, XL, XXL
+  stock           Int            @default(100)
+  priceAdjustment Int            @default(0) // in THB
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model PrintingService {
+  id                String          @id @default(cuid())
+  supplierId        String
+  supplier          SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  name              String
+  code              String          @default("DTG")
+  description       String?
+  pricePerSurface   Int             @default(80) // in THB
+  maxPrintWidthCm   Float           @default(35.0)
+  maxPrintHeightCm  Float           @default(45.0)
+  supportedSurfaces String          @default("BOTH") // FRONT, BACK, BOTH
+  minOrderQty       Int             @default(1)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model DesignDocument {
+  id               String          @id @default(cuid())
+  userId           String?
+  user             User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  title            String          @default("Custom Tee")
+  garmentProductId String
+  garmentProduct   GarmentProduct  @relation(fields: [garmentProductId], references: [id])
+  garmentVariantId String?
+  garmentColorHex  String          @default("#131718")
+  garmentSize      String          @default("L")
+  garmentFit       String          @default("oversized")
+  frontElements    String          @default("[]") // JSON string of DesignElement[]
+  backElements     String          @default("[]") // JSON string of DesignElement[]
+  sideElements     String          @default("[]") // JSON string of DesignElement[]
+  previewFrontUrl  String?
+  previewBackUrl   String?
+  status           String          @default("READY_FOR_QUOTE") // DRAFT, SAVED, READY_FOR_QUOTE, ORDERED
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  orders           Order[]
+}
+
+model Order {
+  id              String              @id @default(cuid())
+  orderNumber     String              @unique
+  customerId      String?
+  customer        User?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  designId        String
+  design          DesignDocument      @relation(fields: [designId], references: [id])
+  supplierId      String
+  supplier        SupplierProfile     @relation(fields: [supplierId], references: [id])
+  quantity        Int                 @default(1)
+  status          String              @default("PAYMENT_CONFIRMED") // DRAFT, QUOTED, AWAITING_PAYMENT, PAYMENT_CONFIRMED, IN_PRODUCTION, SHIPPED, DELIVERED, CANCELLED
+  paymentMode     String              @default("DEV_MOCK")
+  paymentStatus   String              @default("PAID")
+  totalAmount     Int // in THB
+  garmentCost     Int // in THB
+  printingCost    Int // in THB
+  licensingCost   Int // in THB
+  packagingCost   Int // in THB
+  shippingCost    Int // in THB
+  shippingName    String
+  shippingAddress String
+  shippingCity    String
+  shippingPostal  String
+  shippingPhone   String?
+  snapshotData    String? // JSON snapshot of complete design & pricing at checkout
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  obligations     RoyaltyObligation[]
+}
+
+model RoyaltyObligation {
+  id              String                @id @default(cuid())
+  orderId         String
+  order           Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  creatorId       String
+  artworkId       String
+  artwork         Artwork               @relation(fields: [artworkId], references: [id])
+  licenseOptionId String
+  licenseOption   LicenseOption         @relation(fields: [licenseOptionId], references: [id])
+  unitRoyalty     Int // in THB
+  quantity        Int                   @default(1)
+  totalAmount     Int // in THB
+  status          String                @default("PENDING") // PENDING, ELIGIBLE, SETTLED, CANCELLED
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  ledgerEntries   RoyaltyLedgerEntry[]
+}
+
+model RoyaltyLedgerEntry {
+  id           String             @id @default(cuid())
+  creatorId    String
+  obligationId String?
+  obligation   RoyaltyObligation? @relation(fields: [obligationId], references: [id], onDelete: SetNull)
+  entryType    String // EARNING, PAYOUT_SETTLEMENT, ADJUSTMENT
+  amount       Int // in THB (positive or negative)
+  balanceAfter Int // in THB
+  reference    String?
+  notes        String?
+  createdAt    DateTime           @default(now())
+}
+
+model CreatorSettlement {
+  id               String   @id @default(cuid())
+  creatorId        String
+  settlementNumber String   @unique
+  totalAmount      Int // in THB
+  status           String   @default("COMPLETED") // PENDING, COMPLETED, CANCELLED
+  payoutReference  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  payload    String? // JSON string
+  createdAt  DateTime @default(now())
+}
