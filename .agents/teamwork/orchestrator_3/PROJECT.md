@@ -70,4 +70,4 @@ Every feature from the user request and survey is enumerated below with its assi
 | M2 | Royalty Ledger & Supplier Specs | `orders.ts` (atomic tx), `royalties.ts`, `production.ts`, `orders_royalties.test.ts`, API routes | M1 | DONE |
 | M3 | 2D & 3D Interactive Design Studio | `public/models/tshirt.obj`, `Garment2DCanvas.tsx`, `GarmentPreview3D.tsx`, layer controls, `studio/new/page.tsx` | M0, M1 | DONE |
 | M4 | Multi-Role Portals & Marketplace | Marketplace (`/marketplace`), Creator (`/creators/[slug]`, `/creator/dashboard`), Supplier (`/supplier/dashboard`), Customer (`/account/orders/[id]`) | M2, M3 | DONE |
-| M5 | Final Verification & Hardening | Pass 100% E2E tests (Tiers 1-4), Tier 5 adversarial stress testing (218+ tests passing), Forensic Audit verification | M4 | IN_PROGRESS |
+| M5 | Final Verification & Hardening | Pass 100% E2E tests (Tiers 1-4), Tier 5 adversarial stress testing (268 tests passing), Forensic Audit verification | M4 | DONE |
