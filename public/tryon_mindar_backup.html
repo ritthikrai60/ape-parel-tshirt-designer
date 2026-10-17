@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Gatorz Revenant AR - MindAR WebAR Engine</title>
+
+  <!-- Import Maps for Three.js 0.149 & MindAR 1.2.5 -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/",
+      "mindar-face-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-three.prod.js"
+    }
+  }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #090a0f;
+      --card-bg: rgba(15, 17, 26, 0.88);
+      --border: rgba(255, 255, 255, 0.12);
+      --accent: #00f2fe;
+      --accent-glow: rgba(0, 242, 254, 0.3);
+      --text: #f0f2f5;
+      --text-muted: #94a3b8;
+      --danger: #ff4757;
+      --success: #2ed573;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: #000;
+      color: var(--text);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      position: relative;
+      touch-action: manipulation;
+    }
+
+    /* MindAR Container */
+    #container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+      background: #000;
+    }
+
+    /* Top HUD */
+    .hud-header {
+      position: absolute;
+      top: max(16px, env(safe-area-inset-top));
+      left: max(16px, env(safe-area-inset-left));
+      z-index: 25;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+      transition: background 0.3s;
+    }
+
+    .status-dot.active {
+      background: var(--success);
+      box-shadow: 0 0 10px var(--success);
+    }
+
+    .hud-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .engine-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      background: rgba(0, 242, 254, 0.1);
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      margin-left: 4px;
+    }
+
+    /* Floating Quick Buttons */
+    .quick-actions {
+      position: absolute;
+      top: max(16px, env(safe-area-inset-top));
+      right: max(16px, env(safe-area-inset-right));
+      z-index: 25;
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      transition: transform 0.15s, background 0.2s;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.92);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Control Sidebar / Drawer */
+    .control-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 360px;
+      height: 100%;
+      background: var(--card-bg);
+      border-left: 1px solid var(--border);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      z-index: 30;
+      padding: 24px;
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      transform: translateX(100%); /* Closed by default to keep screen clear */
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .control-panel.open {
+      transform: translateX(0);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .panel-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .panel-header p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .close-panel-btn {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .slider-label span:last-child {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 3px;
+      outline: none;
+      margin: 8px 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 4px 0;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 26px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider-round {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(255, 255, 255, 0.15);
+      transition: .3s;
+      border-radius: 34px;
+    }
+
+    .slider-round:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider-round {
+      background-color: var(--accent);
+    }
+
+    input:checked + .slider-round:before {
+      transform: translateX(20px);
+    }
+
+    .btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 12px;
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      color: #000;
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      box-shadow: 0 4px 16px var(--accent-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+      opacity: 0.9;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: none;
+    }
+
+    /* iPad Responsive: Bottom Drawer */
+    @media (max-width: 900px) {
+      .control-panel {
+        top: auto;
+        bottom: 0;
+        width: 100%;
+        max-height: 75vh;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        border-radius: 24px 24px 0 0;
+        transform: translateY(100%);
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+      }
+
+      .control-panel.open {
+        transform: translateY(0);
+      }
+    }
+
+    /* Start Overlay */
+    #start-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(9, 10, 15, 0.94);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      gap: 16px;
+    }
+
+    .start-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 24px;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .logo-badge {
+      font-size: 44px;
+      filter: drop-shadow(0 0 16px var(--accent));
+    }
+
+    #error-banner {
+      display: none;
+      background: rgba(255, 71, 87, 0.2);
+      border: 1px solid var(--danger);
+      color: #ff6b81;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.4;
+      text-align: left;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Start Overlay -->
+  <div id="start-overlay">
+    <div class="start-card">
+      <div class="logo-badge">🕶️</div>
+      <h2 style="font-size: 22px; font-weight: 700;">Gatorz Revenant AR</h2>
+      <p style="font-size: 14px; color: var(--text-muted); line-height: 1.5;">
+        ระบบลองแว่น 3D เสมือนจริง ขับเคลื่อนด้วยเอนจิน MindAR Face Tracking ล็อคดั้งจมูกและซ่อนขาแว่นอัตโนมัติ
+      </p>
+
+      <div id="error-banner"></div>
+
+      <button class="btn" id="start-btn" style="width: 100%; font-size: 15px; padding: 14px;">
+        📸 เริ่มต้นเปิดกล้อง (Start Camera)
+      </button>
+      <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+        * สำหรับ iPad กรุณาแตะ Allow เมื่อขอใช้งานกล้อง
+      </div>
+    </div>
+  </div>
+
+  <!-- MindAR Viewport -->
+  <div id="container"></div>
+
+  <!-- Top Status HUD -->
+  <div class="hud-header">
+    <div class="status-dot" id="status-dot"></div>
+    <div class="hud-title" id="status-text">พร้อมเริ่มระบบ</div>
+    <div class="engine-badge">MindAR Engine</div>
+  </div>
+
+  <!-- Quick Floating Action Buttons -->
+  <div class="quick-actions">
+    <button class="icon-btn" id="toggle-settings-btn" title="ตั้งค่า/ปรับแว่น">⚙️</button>
+  </div>
+
+  <!-- Control Sidebar / Drawer -->
+  <div class="control-panel" id="control-panel">
+    <div class="panel-header">
+      <div>
+        <h2>ปรับแต่งมิติแว่น</h2>
+        <p>Gatorz Revenant 3D Fine-Tuning</p>
+      </div>
+      <button class="close-panel-btn" id="close-panel-btn">✕</button>
+    </div>
+
+    <!-- Sliders -->
+    <div class="card">
+      <div class="card-title">สัดส่วนและตำแหน่ง</div>
+      
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>สเกลขนาด (Scale Multiplier)</span>
+          <span id="scale-val">1.00x</span>
+        </div>
+        <input type="range" id="scale-slider" min="0.5" max="2.0" step="0.02" value="1.0">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>ตำแหน่งสูง-ต่ำบนดั้ง (Y Offset)</span>
+          <span id="offset-y-val">0.0 mm</span>
+        </div>
+        <input type="range" id="offset-y-slider" min="-40" max="40" step="1" value="0">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>ความลึกแนบดั้งจมูก (Z Offset)</span>
+          <span id="offset-z-val">0.0 mm</span>
+        </div>
+        <input type="range" id="offset-z-slider" min="-50" max="50" step="1" value="0">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>มุมก้ม-เงย (Pitch Tilt)</span>
+          <span id="pitch-val">0.0°</span>
+        </div>
+        <input type="range" id="pitch-slider" min="-25" max="25" step="0.5" value="0">
+      </div>
+
+      <button class="btn btn-secondary" id="reset-btn" style="min-height: 36px; padding: 6px; font-size: 13px;">
+        รีเซ็ตค่าเริ่มต้น
+      </button>
+    </div>
+
+    <!-- Options -->
+    <div class="card">
+      <div class="card-title">การแสดงผล</div>
+      
+      <div class="toggle-row">
+        <span>Face Occluder (ซ่อนขาแว่นหลังศีรษะ)</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-occluder" checked>
+          <span class="slider-round"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span>โครงลวดแว่น (Wireframe)</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-wireframe">
+          <span class="slider-round"></span>
+        </label>
+      </div>
+    </div>
+
+    <button class="btn" id="snapshot-btn">📷 บันทึกภาพ Snapshot</button>
+  </div>
+
+  <!-- ES Module Script -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { MindARThree } from 'mindar-face-three';
+
+    // --- DOM Elements ---
+    const container = document.querySelector("#container");
+    const startOverlay = document.getElementById("start-overlay");
+    const startBtn = document.getElementById("start-btn");
+    const statusDot = document.getElementById("status-dot");
+    const statusText = document.getElementById("status-text");
+    const errorBanner = document.getElementById("error-banner");
+
+    const controlPanel = document.getElementById("control-panel");
+    const toggleSettingsBtn = document.getElementById("toggle-settings-btn");
+    const closePanelBtn = document.getElementById("close-panel-btn");
+
+    const scaleSlider = document.getElementById("scale-slider");
+    const scaleVal = document.getElementById("scale-val");
+    const offsetYSlider = document.getElementById("offset-y-slider");
+    const offsetYVal = document.getElementById("offset-y-val");
+    const offsetZSlider = document.getElementById("offset-z-slider");
+    const offsetZVal = document.getElementById("offset-z-val");
+    const pitchSlider = document.getElementById("pitch-slider");
+    const pitchVal = document.getElementById("pitch-val");
+    const resetBtn = document.getElementById("reset-btn");
+    const toggleOccluder = document.getElementById("toggle-occluder");
+    const toggleWireframe = document.getElementById("toggle-wireframe");
+    const snapshotBtn = document.getElementById("snapshot-btn");
+
+    function showError(msg) {
+      errorBanner.style.display = 'block';
+      errorBanner.innerHTML = msg;
+    }
+
+    toggleSettingsBtn.addEventListener('click', () => { controlPanel.classList.toggle('open'); });
+    closePanelBtn.addEventListener('click', () => { controlPanel.classList.remove('open'); });
+
+    // --- State ---
+    let mindarThree = null;
+    let glassesModel = null;
+    let occluderMesh = null;
+    let glassesGroup = null;
+
+    // Sliders
+    let scaleMultiplier = 1.0;
+    let offsetY = 0.0;
+    let offsetZ = 0.0;
+    let pitchTilt = 0.0;
+
+    function applyTransforms() {
+      if (!glassesGroup) return;
+
+      // Base MindAR face scale: our model is 0.142m, MindAR face is roughly 1.0 unit wide
+      // So base scale factor in MindAR is around 1.0
+      const s = scaleMultiplier;
+      glassesGroup.scale.set(s, s, s);
+
+      // Position: Anchor 168 is Nose Bridge
+      glassesGroup.position.set(
+        0,
+        offsetY / 1000.0,
+        offsetZ / 1000.0
+      );
+
+      // Pitch
+      glassesGroup.rotation.x = (pitchTilt * Math.PI) / 180.0;
+    }
+
+    scaleSlider.addEventListener('input', (e) => {
+      scaleMultiplier = parseFloat(e.target.value);
+      scaleVal.innerText = `${scaleMultiplier.toFixed(2)}x`;
+      applyTransforms();
+    });
+
+    offsetYSlider.addEventListener('input', (e) => {
+      offsetY = parseFloat(e.target.value);
+      offsetYVal.innerText = `${offsetY.toFixed(1)} mm`;
+      applyTransforms();
+    });
+
+    offsetZSlider.addEventListener('input', (e) => {
+      offsetZ = parseFloat(e.target.value);
+      offsetZVal.innerText = `${offsetZ.toFixed(1)} mm`;
+      applyTransforms();
+    });
+
+    pitchSlider.addEventListener('input', (e) => {
+      pitchTilt = parseFloat(e.target.value);
+      pitchVal.innerText = `${pitchTilt.toFixed(1)}°`;
+      applyTransforms();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      scaleMultiplier = 1.0; scaleSlider.value = 1.0; scaleVal.innerText = "1.00x";
+      offsetY = 0.0; offsetYSlider.value = 0.0; offsetYVal.innerText = "0.0 mm";
+      offsetZ = 0.0; offsetZSlider.value = 0.0; offsetZVal.innerText = "0.0 mm";
+      pitchTilt = 0.0; pitchSlider.value = 0.0; pitchVal.innerText = "0.0°";
+      applyTransforms();
+    });
+
+    toggleWireframe.addEventListener('change', (e) => {
+      if (glassesModel) {
+        glassesModel.traverse((child) => {
+          if (child.isMesh && child.material) child.material.wireframe = e.target.checked;
+        });
+      }
+    });
+
+    toggleOccluder.addEventListener('change', (e) => {
+      if (occluderMesh) {
+        occluderMesh.visible = e.target.checked;
+      }
+    });
+
+    // --- Start MindAR Pipeline ---
+    async function startAR() {
+      try {
+        startBtn.innerText = "⏳ กำลังโหลดโมเดล MediaPipe...";
+
+        mindarThree = new MindARThree({
+          container: container,
+        });
+
+        const { renderer, scene, camera } = mindarThree;
+
+        // Realistic Studio Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        dirLight.position.set(0, 2, 2);
+        scene.add(dirLight);
+
+        const fillLight = new THREE.DirectionalLight(0xa5b4fc, 1.0);
+        fillLight.position.set(-2, 0, 1);
+        scene.add(fillLight);
+
+        // 1. Add Face Occluder (Head model hiding glasses temple arms behind ears)
+        occluderMesh = mindarThree.addFaceMesh();
+        const occluderMaterial = new THREE.MeshBasicMaterial({ colorWrite: false });
+        occluderMesh.material = occluderMaterial;
+
+        // 2. Add Anchor at Landmark 168 (Nose Bridge)
+        const anchor = mindarThree.addAnchor(168);
+
+        // Group inside anchor for fine-tuning
+        glassesGroup = new THREE.Group();
+        anchor.group.add(glassesGroup);
+
+        // Track events
+        anchor.onTargetFound = () => {
+          statusDot.classList.add('active');
+          statusText.innerText = "ตรวจจับใบหน้าแล้ว";
+        };
+
+        anchor.onTargetLost = () => {
+          statusDot.classList.remove('active');
+          statusText.innerText = "กำลังค้นหาใบหน้า...";
+        };
+
+        // 3. Load 3D Glasses Model
+        const gltfLoader = new GLTFLoader();
+        const modelUrl = `/models/glasses/gatorz_revenant.glb?t=${Date.now()}`;
+        
+        await new Promise((resolve, reject) => {
+          gltfLoader.load(modelUrl, (gltf) => {
+            glassesModel = gltf.scene;
+            glassesGroup.add(glassesModel);
+            applyTransforms();
+            console.log("3D Model loaded into MindAR Anchor!");
+            resolve();
+          }, undefined, (err) => {
+            console.warn("Retrying with relative path...", err);
+            gltfLoader.load(`./models/glasses/gatorz_revenant.glb?t=${Date.now()}`, (gltf) => {
+              glassesModel = gltf.scene;
+              glassesGroup.add(glassesModel);
+              applyTransforms();
+              resolve();
+            }, undefined, reject);
+          });
+        });
+
+        // 4. Start MindAR Engine
+        startBtn.innerText = "⏳ กำลังเปิดกล้อง...";
+        await mindarThree.start();
+
+        startOverlay.style.display = "none";
+        statusText.innerText = "พร้อมใช้งาน";
+
+        renderer.setAnimationLoop(() => {
+          renderer.render(scene, camera);
+        });
+
+      } catch (err) {
+        console.error("MindAR Error:", err);
+        startBtn.innerText = "📸 ลองใหม่อีกครั้ง";
+        showError("<strong>เกิดข้อผิดพลาดในการเริ่มระบบ:</strong> " + err.message + "<br><br>กรุณาตรวจสอบว่าเปิดผ่าน https:// บน iPad และกดอนุญาตสิทธิ์กล้อง");
+      }
+    }
+
+    startBtn.addEventListener('click', startAR);
+
+    // Snapshot button
+    snapshotBtn.addEventListener('click', () => {
+      if (!mindarThree) return;
+      const { renderer } = mindarThree;
+      const videoEl = container.querySelector('video');
+      const canvasEl = container.querySelector('canvas');
+
+      if (!videoEl || !canvasEl) return;
+
+      const captureCanvas = document.createElement('canvas');
+      captureCanvas.width = canvasEl.width;
+      captureCanvas.height = canvasEl.height;
+      const ctx = captureCanvas.getContext('2d');
+
+      // Draw mirrored video if front camera
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(videoEl, -captureCanvas.width, 0, captureCanvas.width, captureCanvas.height);
+      ctx.restore();
+
+      // Draw Three.js overlay
+      ctx.drawImage(canvasEl, 0, 0);
+
+      const link = document.createElement('a');
+      link.download = `gatorz_mindar_${Date.now()}.png`;
+      link.href = captureCanvas.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+</body>
+</html>

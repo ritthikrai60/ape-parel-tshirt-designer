@@ -10,6 +10,8 @@ import {
   Plus,
   Maximize2,
   RotateCw,
+  Crown,
+  Tag,
 } from 'lucide-react';
 
 export interface LayerManagerProps {
@@ -21,6 +23,17 @@ export interface LayerManagerProps {
   onDeleteElement: (id: string) => void;
   onOpenCatalog: () => void;
   onClearSurface: () => void;
+  artworks?: Array<{
+    id: string;
+    title: string;
+    licenseOptions: Array<{
+      id: string;
+      name: string;
+      price: number;
+      scope: string;
+    }>;
+  }>;
+  ownedPermanentArtworkIds?: Set<string>;
 }
 
 export const LayerManager: React.FC<LayerManagerProps> = ({
@@ -32,6 +45,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
   onDeleteElement,
   onOpenCatalog,
   onClearSurface,
+  artworks,
+  ownedPermanentArtworkIds,
 }) => {
   // Sort descending by zIndex so the top layer appears first in the list
   const sortedLayers = [...elements].sort((a, b) => b.zIndex - a.zIndex);
@@ -116,9 +131,29 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-sans font-semibold text-ink truncate">{el.title}</p>
-                    <p className="text-[10px] font-mono text-mutedGray truncate">
-                      ฿{el.price} &bull; {el.creatorName}
-                    </p>
+                    {(() => {
+                      const isOwned = ownedPermanentArtworkIds?.has(el.artworkId);
+                      const art = artworks?.find((a) => a.id === el.artworkId);
+                      const lic = art?.licenseOptions.find((l) => l.id === el.licenseOptionId);
+                      const isUnlimited = lic?.scope === 'UNLIMITED';
+
+                      return (
+                        <p className="text-[10px] font-mono text-mutedGray truncate flex items-center gap-1">
+                          {isOwned ? (
+                            <span className="text-amber-700 font-bold flex items-center gap-0.5">
+                              <Crown className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                              <span>฿0 Vault</span>
+                            </span>
+                          ) : isUnlimited ? (
+                            <span className="text-amber-800 font-bold">฿{el.price} (ตลอดชีพ)</span>
+                          ) : (
+                            <span>฿{el.price}/ชิ้น</span>
+                          )}
+                          <span>&bull;</span>
+                          <span>{el.creatorName}</span>
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -220,6 +255,91 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
               className="w-full accent-warm"
             />
           </div>
+
+          {/* License Scope Selector */}
+          {(() => {
+            const isOwnedInVault = ownedPermanentArtworkIds?.has(selectedElement.artworkId);
+            const selectedArtwork = artworks?.find((a) => a.id === selectedElement.artworkId);
+
+            if (isOwnedInVault) {
+              return (
+                <div className="bg-amber-50/90 border border-amber-300 rounded-lg p-2.5 flex items-center justify-between text-xs font-mono">
+                  <div className="flex items-center space-x-1.5 text-amber-900 font-bold">
+                    <Crown className="w-4 h-4 text-amber-600 fill-amber-500" />
+                    <span>Permanent IP ใน Vault</span>
+                  </div>
+                  <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    ฿0 ผลิตฟรี
+                  </span>
+                </div>
+              );
+            }
+
+            if (!selectedArtwork || selectedArtwork.licenseOptions.length === 0) {
+              return null;
+            }
+
+            return (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex justify-between items-center text-[10px] font-mono">
+                  <span className="text-mutedGray font-bold uppercase flex items-center gap-1">
+                    <Tag className="w-3 h-3 text-warm-dark" />
+                    <span>รูปแบบลิขสิทธิ์ (License Scope)</span>
+                  </span>
+                  <span className="text-ink font-bold">
+                    ฿{selectedElement.price}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  {selectedArtwork.licenseOptions.map((opt) => {
+                    const isSelected = selectedElement.licenseOptionId === opt.id;
+                    const isUnlimited = opt.scope === 'UNLIMITED';
+
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() =>
+                          onUpdateElement(selectedElement.id, {
+                            licenseOptionId: opt.id,
+                            price: opt.price,
+                          })
+                        }
+                        className={`p-2 rounded-lg border text-left flex flex-col justify-between transition-all ${
+                          isSelected
+                            ? 'bg-paper border-ink ring-1 ring-ink shadow-2xs font-bold'
+                            : 'bg-paper-light border-borderCol hover:border-warm/60 opacity-80'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className="text-[10px] font-mono text-ink font-bold flex items-center gap-1">
+                            {isUnlimited ? (
+                              <>
+                                <Crown className="w-3 h-3 text-amber-600" />
+                                <span>ตลอดชีพ</span>
+                              </>
+                            ) : (
+                              <>
+                                <Tag className="w-3 h-3 text-ink" />
+                                <span>รายชิ้น</span>
+                              </>
+                            )}
+                          </span>
+                          <span className="text-xs font-mono text-ink font-bold">
+                            ฿{opt.price}
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-mono text-mutedGray">
+                          {isUnlimited ? 'ซื้อขาดเข้า Vault' : 'คิดตามจำนวนตัว'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

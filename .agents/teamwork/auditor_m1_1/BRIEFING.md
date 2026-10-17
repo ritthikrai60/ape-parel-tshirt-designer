@@ -1,7 +1,7 @@
-# BRIEFING — 2026-10-09T23:51:00Z
+# BRIEFING — 2026-10-10T18:50:45Z
 
 ## Mission
-Forensic integrity audit of Milestone 1 work products (`src/lib/pricing.ts`, `src/lib/__tests__/pricing.test.ts`, `src/app/api/pricing/calculate/route.ts`, `src/app/layout.tsx`, `src/app/page.tsx`) to detect any integrity violations or test falsifications.
+Forensic integrity audit of Milestone 1 Remediation deliverable `public/models/tshirt.obj` and worker report `worker_m1_gen2_1/handoff.md` to empirically verify provenance, mesh geometry integrity, manifold seam welding, boundary edges, shell count, face count, loop UV assignments, and absence of manual tampering or facades.
 
 ## 🔒 My Identity
 - Archetype: forensic_auditor
@@ -9,55 +9,62 @@ Forensic integrity audit of Milestone 1 work products (`src/lib/pricing.ts`, `sr
 - Working directory: d:\Coding Projects\ape-parel tshirt\.agents\teamwork\auditor_m1_1
 - Original parent: ebc38aff-81cb-457f-bd27-e38a9be40d41
 - Target: Milestone 1 code
+- Current parent: 2497e6f8-1432-4f9c-b218-8816c43f5522
+- Target (Iteration 2): `public/models/tshirt.obj` and `worker_m1_gen2_1/handoff.md`
 
 ## 🔒 Key Constraints
 - Audit-only — do NOT modify implementation code
 - Trust NOTHING — verify everything independently
-- Integrity mode: Development (per ORIGINAL_REQUEST.md)
+- Integrity mode: Development (per ORIGINAL_REQUEST.md 2026-10-09)
 - Verify dynamic queries to prisma.garmentProduct, prisma.licenseOption, prisma.garmentColor, etc.
 - Verify tests execute against real seeded SQLite database prisma/dev.db
 - Deliver binary verdict: CLEAN or INTEGRITY VIOLATION
+- Integrity mode: Benchmark (per ORIGINAL_REQUEST.md 2026-10-10T15:24:53Z)
+- Verify provenance, mesh integrity, loop UV assignment, zero facade/tampering
+- Prohibit hardcoded test results, facade implementations, fabricated verification outputs, manual OBJ hacking/deletion of faces
 
 ## Current Parent
-- Conversation ID: ebc38aff-81cb-457f-bd27-e38a9be40d41
-- Updated: not yet
+- Conversation ID: 2497e6f8-1432-4f9c-b218-8816c43f5522
+- Updated: 2026-10-10T18:50:45Z
 
 ## Audit Scope
-- **Work product**: `src/lib/pricing.ts`, `src/lib/__tests__/pricing.test.ts`, `src/app/api/pricing/calculate/route.ts`, `src/app/layout.tsx`, `src/app/page.tsx`
-- **Profile loaded**: General Project (Development Mode per ORIGINAL_REQUEST.md)
+- **Work product**: `public/models/tshirt.obj`, `worker_m1_gen2_1/handoff.md`
+- **Profile loaded**: General Project (Benchmark Mode per ORIGINAL_REQUEST.md line 120)
 - **Audit type**: forensic integrity check
 
 ## Audit Progress
 - **Phase**: reporting
 - **Checks completed**:
-  1. Static analysis of target files for hardcoded test results, facade implementations, and mock leaks
-  2. Database execution verification: empirically logged real SQLite queries to `prisma/dev.db`
-  3. Runtime benchmark validation: confirmed dynamic calculation of THB 410 (150+80+15+40+125)
-  4. Test suite execution: 11/11 Vitest tests pass in 54ms
-  5. Type check and production build: `npx tsc --noEmit` (0 errors), `npm run build` (exit 0)
-  6. API route validation: tested `POST /api/pricing/calculate` with 200, 400, and 404 response paths
-  7. Adversarial stress testing: negative qty, spoofed artwork license IDs, invalid variant IDs
+  1. Provenance check of `public/models/tshirt.obj` (Blender 5.1.2 header, formatting, syntax, 205 KB payload) — PASS
+  2. Live Blender scene inspection via MCP (`execute_blender_code`): confirmed live `TShirt` mesh stats — PASS
+  3. Mesh topology and integrity verification (boundary edges = 244, loose vertices = 0, manifold seam welding = 46 shared verts, connected components = 4 garment elements, face count = 2,680 triangles, 0 degenerate faces) — PASS
+  4. UV partition and loop mapping audit (face-corner split, 0 cross faces, 0 front/back bleed, horizontal anti-mirroring verified) — PASS
+  5. Three.js `OBJLoader` parsing (8,040 attributes, 2,680 triangles, 0 errors) — PASS
+  6. TypeScript check (`npx tsc --noEmit` exit 0) and Next.js production build (`npm run build` exit 0) — PASS
 - **Checks remaining**: None
-- **Findings so far**: CLEAN — zero integrity violations found
+- **Findings so far**: CLEAN — Zero integrity violations found; authentic procedural generation and clean export.
 
 ## Key Decisions Made
-- Adhered strictly to ground-truth constraints from ORIGINAL_REQUEST.md.
-- Verified empirical database execution through Prisma client query logs and isolated script executions.
+- Empirically parsed and analyzed all 6,427 lines of `public/models/tshirt.obj` via independent Python inspection script.
+- Cross-verified live Blender 5.1.2 scene object via MCP tool `execute_blender_code`.
+- Confirmed that 0 cross faces was achieved via standard face-corner loop UV indexing (`f v/vt/vn`), preserving all 2,680 faces and welding side seams.
 
 ## Artifact Index
-- DISPATCH.md — Dispatch instructions and incoming messages
-- BRIEFING.md — Working memory and situational awareness
-- progress.md — Step-by-step progress heartbeat
-- handoff.md — Forensic audit report with final verdict
+- DISPATCH.md — Audit assignment and message history
+- BRIEFING.md — Situational awareness and persistent memory
+- progress.md — Audit execution heartbeat
+- forensic_check.py — Independent Python forensic verification script
+- handoff.md — Comprehensive forensic audit report with final verdict
 
 ## Attack Surface
 - **Hypotheses tested**:
-  - Hardcoded return value (410, 1150, 465, 570): Refuted. Grep confirmed 0 matches in pricing engine; formula executes dynamically.
-  - Mock database facade: Refuted. Runtime execution confirms live SQL queries to `prisma/dev.db`.
-  - Spoofed license assignment: Refuted. Pricing engine validates `license.artworkId === item.artworkId` and rejects mismatches.
-  - Unsanitized quantities: Refuted. Handled defensively via `Math.max(1, Math.floor(quantity))` and Zod integer validation.
-- **Vulnerabilities found**: None.
-- **Untested angles**: Large batch concurrency (>1000 simultaneous pricing requests; benchmark MVP is currently single-node SQLite).
+  - Did the worker manually delete faces along seams to cheat UV checks? (Refuted: 2,680 faces present, min area > 3.5e-4 m²).
+  - Are there floating or unreferenced vertices? (Refuted: exactly 0 loose vertices).
+  - Are seams physically detached (fake seams)? (Refuted: 46 seam vertices at Z=0 shared by both front and back faces, forming 3,898 manifold edges).
+  - Are boundary edges 244? (Confirmed: 244 boundary edges corresponding to 8 physical garment openings).
+  - Was the file exported from Blender 5.1.2? (Confirmed: authentic header, standard Wavefront syntax, verified live in Blender MCP).
+- **Vulnerabilities found**: None in the asset. Legacy test suite `m5_graphics_production_challenger.test.ts` lines 188-190 assert 1:1 vertex arrays instead of loop indexing, which is documented and scheduled for alignment in Milestone 2.
+- **Untested angles**: None within Milestone 1 scope.
 
 ## Loaded Skills
 - None

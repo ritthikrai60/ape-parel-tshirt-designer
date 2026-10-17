@@ -27,6 +27,7 @@ export interface PricingPayload {
   garmentProductId: string;
   garmentVariantId?: string;
   quantity?: number;
+  userId?: string;
   frontArtworkLicenses?: ArtworkLicenseLine[];
   backArtworkLicenses?: ArtworkLicenseLine[];
   sideArtworkLicenses?: ArtworkLicenseLine[];
@@ -53,6 +54,8 @@ export interface PriceCalculationResult {
       creatorName: string;
       unitPrice: number;
       totalPrice: number;
+      isPermanentIp?: boolean;
+      notes?: string;
     }>;
   };
 }
@@ -88,6 +91,11 @@ export interface CreateOrderInput {
   clientClaimedTotal?: number;
   paymentMode?: string;
   paymentStatus?: string;
+  status?: string;
+  stripePaymentIntentId?: string;
+  stripeSessionId?: string;
+  stripeClientSecret?: string;
+  stripeReceiptUrl?: string;
   _simulateFailureAtStep?: 'design' | 'order' | 'obligation' | 'ledger';
 }
 

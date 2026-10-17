@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { getCreatorLedgerSummary, getCreatorLedgerEntries } from '@/lib/royalties';
 import { CreatorDashboardClient } from '@/components/portal/CreatorDashboardClient';
@@ -14,12 +16,45 @@ export const metadata: Metadata = {
 interface CreatorDashboardPageProps {
   searchParams?: {
     creator?: string;
+    onboard?: string;
+    onboarding?: string;
   };
 }
 
 export default async function CreatorDashboardPage({
   searchParams,
 }: CreatorDashboardPageProps) {
+  // ── Layer 2 guard (defense-in-depth, middleware is Layer 1) ──────────────
+  const session = await auth();
+  const role = (session?.user as any)?.role as string | undefined;
+
+  if (!session?.user) {
+    redirect('/login?callbackUrl=/creator/dashboard');
+  }
+
+  if (role !== 'CREATOR' && role !== 'ADMIN') {
+    redirect('/403');
+  }
+
+  const userId = (session.user as any).id as string;
+  // ─────────────────────────────────────────────────────────────────────────
+
+  let userCreatorProfile = null;
+  try {
+    userCreatorProfile = await prisma.creatorProfile.findUnique({
+      where: { userId },
+    });
+  } catch (e) {
+    console.error('[CreatorDashboardPage] Error querying user profile:', e);
+  }
+
+  const needsOnboarding =
+    !userCreatorProfile ||
+    searchParams?.onboard === 'true' ||
+    searchParams?.onboarding === 'true' ||
+    searchParams?.creator === 'onboard';
+
+  // Only load the creator's own profile for non-admin users
   let allCreators: Array<{
     id: string;
     slug: string;
@@ -29,11 +64,11 @@ export default async function CreatorDashboardPage({
   }> = [];
 
   try {
-    const dbCreators = await prisma.creatorProfile.findMany({
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (dbCreators && dbCreators.length > 0) {
+    if (role === 'ADMIN') {
+      // Admins can see all creators
+      const dbCreators = await prisma.creatorProfile.findMany({
+        orderBy: { createdAt: 'asc' },
+      });
       allCreators = dbCreators.map((c) => ({
         id: c.id,
         slug: c.slug,
@@ -41,48 +76,58 @@ export default async function CreatorDashboardPage({
         avatarUrl: c.avatarUrl,
         payoutDetails: c.payoutDetails,
       }));
+    } else if (userCreatorProfile) {
+      // Regular creators see only their own profile
+      allCreators = [
+        {
+          id: userCreatorProfile.id,
+          slug: userCreatorProfile.slug,
+          displayName: userCreatorProfile.displayName,
+          avatarUrl: userCreatorProfile.avatarUrl,
+          payoutDetails: userCreatorProfile.payoutDetails,
+        },
+      ];
     }
   } catch (err) {
     console.error('[CreatorDashboardPage] Failed to load creators from DB:', err);
   }
 
-  // Fallback creators if unseeded
-  if (allCreators.length === 0) {
-    allCreators = [
-      {
-        id: 'creator-dash-ape',
-        slug: 'dash-ape',
-        displayName: 'Dash Ape Studio',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        payoutDetails: 'PromptPay: 081-998-7711 (Dash Ape Studio Ltd.)',
-      },
-      {
-        id: 'creator-cyber-monk',
-        slug: 'cyber-monk',
-        displayName: 'Cyber Monk',
-        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-        payoutDetails: 'PromptPay: 089-445-6622',
-      },
-      {
-        id: 'creator-soma',
-        slug: 'soma-botanica',
-        displayName: 'Soma Botanica',
-        avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150',
-        payoutDetails: 'Bangkok Bank: 981-0-12847-1',
-      },
-    ];
-  }
-
-  const activeSlug = searchParams?.creator || allCreators[0]?.slug || 'dash-ape';
+  const activeSlug =
+    role === 'ADMIN'
+      ? searchParams?.creator || allCreators[0]?.slug || ''
+      : userCreatorProfile?.slug || '';
 
   let summary = null;
   let entries: any[] = [];
+  let artworks: any[] = [];
 
-  try {
-    summary = await getCreatorLedgerSummary(activeSlug);
-    entries = await getCreatorLedgerEntries(activeSlug, { limit: 100 });
-  } catch (err) {
-    console.error(`[CreatorDashboardPage] Failed to load ledger data for ${activeSlug}:`, err);
+  if (activeSlug) {
+    try {
+      summary = await getCreatorLedgerSummary(activeSlug);
+      entries = await getCreatorLedgerEntries(activeSlug, { limit: 100 });
+      artworks = await prisma.artwork.findMany({
+        where: {
+          creator: { slug: activeSlug },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          previewUrl: true,
+          status: true,
+          moderationStatus: true,
+          moderationReason: true,
+          moderatedAt: true,
+          licenseOptions: {
+            select: { price: true },
+            take: 1,
+          },
+          createdAt: true,
+        },
+      });
+    } catch (err) {
+      console.error(`[CreatorDashboardPage] Failed to load ledger data for ${activeSlug}:`, err);
+    }
   }
 
   return (
@@ -90,8 +135,11 @@ export default async function CreatorDashboardPage({
       <CreatorDashboardClient
         initialSummary={summary}
         initialEntries={entries}
+        initialArtworks={artworks}
         allCreators={allCreators}
         currentSlug={activeSlug}
+        needsOnboarding={needsOnboarding}
+        initialUser={session?.user}
       />
     </div>
   );

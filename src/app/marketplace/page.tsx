@@ -1,8 +1,17 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
+import { getArtworksRatingBatch } from '@/lib/reviews';
+import {
+  getArtworksFavoriteCountBatch,
+  getUserFavoriteArtworkIds,
+  getUserPermanentIpArtworkIds,
+} from '@/lib/vault';
 import { MarketplaceArtworkDTO } from '@/components/marketplace/ArtworkCard';
 import { MarketplaceCatalog } from '@/components/marketplace/CategoryFilter';
-import { Shield, Sparkles, Layers } from 'lucide-react';
+import { HeroBanner } from '@/components/marketplace/HeroBanner';
+import { FeaturedCarousel } from '@/components/marketplace/FeaturedCarousel';
+import { CreatorSpotlight } from '@/components/marketplace/CreatorSpotlight';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,25 +24,25 @@ export const metadata: Metadata = {
 // Fallback artworks matching benchmark seed data if database is unseeded
 const FALLBACK_ARTWORKS: MarketplaceArtworkDTO[] = [
   {
-    id: 'art-dash-ape-classic',
-    title: 'Dash Ape Classic Head Mark',
-    description: 'Signature circular badge featuring the confident Dash Ape mascot face in bold ink contrast.',
+    id: 'art-dash-ape-running-blk',
+    title: 'Dash Ape Running (Black)',
+    description: 'Dynamic sprinting Dash Ape mascot in solid bold black silhouette.',
     category: 'MASCOT',
-    previewUrl: 'https://api.dicebear.com/8.x/bottts/svg?seed=dash-ape-alpha&backgroundColor=131718',
-    mimeType: 'image/svg+xml',
-    tags: 'mascot,ape,streetwear,badge,logo',
+    previewUrl: '/uploads/artworks/dashape/APE RUNNING BLK.png',
+    mimeType: 'image/png',
+    tags: 'mascot,dashape,running,black,streetwear,athletic',
     createdAt: new Date().toISOString(),
     creator: {
       id: 'creator-dash-ape',
       displayName: 'Dash Ape Studio',
       slug: 'dash-ape',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      avatarUrl: '/uploads/avatars/dash_ape_avatar.png',
       bio: 'Tokyo-Bangkok underground street culture, expressive simian marks and bold mascot aesthetics.',
     },
     baseLicensePrice: 40,
     licenseOptions: [
       {
-        id: 'lic-dash-ape-40',
+        id: 'lic-dash-ape-running-blk',
         name: 'Standard Apparel License',
         price: 40,
         commercialUse: true,
@@ -43,27 +52,27 @@ const FALLBACK_ARTWORKS: MarketplaceArtworkDTO[] = [
     ],
   },
   {
-    id: 'art-cyber-primate',
-    title: 'Cyber Primate Tokyo 2088',
-    description: 'Futuristic mechanized simian cyberpunk illustration with holographic accents.',
-    category: 'ILLUSTRATION',
-    previewUrl: 'https://api.dicebear.com/8.x/bottts/svg?seed=cyber-primate-2088&backgroundColor=DABA98',
-    mimeType: 'image/svg+xml',
-    tags: 'cyberpunk,tokyo,primate,illustration',
+    id: 'art-dash-ape-logo-colored',
+    title: 'Dash Ape Signature Logo (Full Color)',
+    description: 'Official full-color Dash Ape emblem with vibrant street branding.',
+    category: 'LOGO',
+    previewUrl: '/uploads/artworks/dashape/DASH APE LOGO COLORED.png',
+    mimeType: 'image/png',
+    tags: 'logo,dashape,full-color,signature,streetwear,badge',
     createdAt: new Date().toISOString(),
     creator: {
       id: 'creator-dash-ape',
       displayName: 'Dash Ape Studio',
       slug: 'dash-ape',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      avatarUrl: '/uploads/avatars/dash_ape_avatar.png',
       bio: 'Tokyo-Bangkok underground street culture, expressive simian marks and bold mascot aesthetics.',
     },
-    baseLicensePrice: 60,
+    baseLicensePrice: 50,
     licenseOptions: [
       {
-        id: 'lic-cyber-primate-60',
+        id: 'lic-dash-ape-logo-colored',
         name: 'Standard Apparel License',
-        price: 60,
+        price: 50,
         commercialUse: true,
         scope: 'PER_GARMENT',
         terms: 'Direct to garment apparel print license.',
@@ -159,6 +168,14 @@ const FALLBACK_ARTWORKS: MarketplaceArtworkDTO[] = [
 export default async function MarketplacePage() {
   let artworks: MarketplaceArtworkDTO[] = [];
 
+  let currentUserId: string | undefined;
+  try {
+    const session = await auth();
+    if (session?.user?.id) {
+      currentUserId = session.user.id;
+    }
+  } catch {}
+
   try {
     const dbArtworks = await prisma.artwork.findMany({
       where: {
@@ -173,9 +190,23 @@ export default async function MarketplacePage() {
     });
 
     if (dbArtworks && dbArtworks.length > 0) {
+      const artIds = dbArtworks.map((a) => a.id);
+      const [ratingsBatch, favoritesBatch, userFavIds, userPermIds] = await Promise.all([
+        getArtworksRatingBatch(artIds),
+        getArtworksFavoriteCountBatch(artIds),
+        getUserFavoriteArtworkIds(currentUserId),
+        getUserPermanentIpArtworkIds(currentUserId),
+      ]);
+
+      const userFavSet = new Set(userFavIds);
+      const userPermSet = new Set(userPermIds);
+
       artworks = dbArtworks.map((a) => {
         const prices = a.licenseOptions.map((l) => l.price);
         const minPrice = prices.length > 0 ? Math.min(...prices) : 40;
+        const ratingInfo = ratingsBatch[a.id];
+        const favCount = favoritesBatch[a.id] || 0;
+
         return {
           id: a.id,
           title: a.title,
@@ -201,6 +232,11 @@ export default async function MarketplacePage() {
             scope: l.scope,
             terms: l.terms,
           })),
+          averageRating: ratingInfo?.averageRating ?? 5.0,
+          reviewCount: ratingInfo?.reviewCount ?? 0,
+          favoriteCount: favCount,
+          isFavorited: userFavSet.has(a.id),
+          isPermanentIp: userPermSet.has(a.id),
         };
       });
     }
@@ -213,42 +249,47 @@ export default async function MarketplacePage() {
     artworks = FALLBACK_ARTWORKS;
   }
 
+  // Fetch dynamic CMS Hero Banner if active
+  let activeBanner = null;
+  try {
+    activeBanner = await prisma.marketplaceBanner.findFirst({
+      where: { isActive: true },
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+    });
+  } catch (err) {
+    console.error('[MarketplacePage] Banner fetch error:', err);
+  }
+
+  // Derived stats
+  const totalArtworks = artworks.length;
+  const uniqueCreatorIds = new Set(artworks.map((a) => a.creator.id));
+  const totalCreators = uniqueCreatorIds.size;
+  const totalLicenses = artworks.reduce((sum, a) => sum + a.licenseOptions.length, 0);
+
+  // Featured artwork = first (most recent) or highest-priced
+  const featuredArtwork = artworks[0] ?? null;
+
+  // Trending = up to 8 artworks for carousel
+  const trendingArtworks = artworks.slice(0, 8);
+
   return (
     <div className="flex-1 flex flex-col w-full bg-paper">
-      {/* Hero Header */}
-      <section className="border-b border-borderCol bg-paper-light/50 py-12 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-dark bg-warm/20 border border-warm/40 px-3 py-1 rounded-full mb-4">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Independent Creator Catalog</span>
-            </div>
-            <h1 className="text-3xl sm:text-5xl font-black font-sans tracking-tight text-ink mb-4">
-              Creator Artwork Marketplace
-            </h1>
-            <p className="text-base sm:text-lg text-ink-muted font-sans leading-relaxed mb-6">
-              License verified artwork directly from underground creators. Every design is production-ready for 2D/3D custom apparel, with transparent per-garment royalties guaranteed on checkout.
-            </p>
-            {/* Feature Highlights */}
-            <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-mutedGray">
-              <div className="flex items-center gap-1.5 bg-paper border border-borderCol px-2.5 py-1 rounded-md">
-                <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Auditable Royalty Ledger</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-paper border border-borderCol px-2.5 py-1 rounded-md">
-                <Layers className="w-3.5 h-3.5 text-warm-dark" />
-                <span>Vector & Hi-Res DTG Ready</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-paper border border-borderCol px-2.5 py-1 rounded-md">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>1-Click 3D Studio Launch</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ── Hero Banner ── */}
+      <HeroBanner
+        featuredArtwork={featuredArtwork}
+        totalArtworks={totalArtworks}
+        totalCreators={totalCreators}
+        totalLicenses={totalLicenses}
+        campaignBanner={activeBanner}
+      />
 
-      {/* Interactive Catalog */}
+      {/* ── Featured / Trending Carousel ── */}
+      <FeaturedCarousel artworks={trendingArtworks} />
+
+      {/* ── Creator Spotlight ── */}
+      <CreatorSpotlight artworks={artworks} />
+
+      {/* ── Full Catalog with Filters ── */}
       <MarketplaceCatalog initialArtworks={artworks} />
     </div>
   );

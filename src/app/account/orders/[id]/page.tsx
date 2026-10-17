@@ -1,5 +1,6 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { Metadata } from 'next';
+import { auth } from '@/auth';
 import { getOrderByIdOrNumber } from '@/lib/orders';
 import { CustomerOrderTrackingClient } from '@/components/portal/CustomerOrderTrackingClient';
 
@@ -24,11 +25,27 @@ export async function generateMetadata({
 export default async function OrderTrackingPage({
   params,
 }: OrderTrackingPageProps) {
+  // ── Layer 2 guard (defense-in-depth, middleware is Layer 1) ──────────────
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect(`/login?callbackUrl=/account/orders/${params.id}`);
+  }
+
+  const userId = (session.user as any).id as string;
+  const role = (session.user as any).role as string | undefined;
+  // ─────────────────────────────────────────────────────────────────────────
+
   const { id } = params;
   const order = await getOrderByIdOrNumber(id);
 
   if (!order) {
     notFound();
+  }
+
+  // Ownership check: only the order owner or an admin may view
+  if (role !== 'ADMIN' && order.customerId !== userId) {
+    redirect('/403');
   }
 
   return (

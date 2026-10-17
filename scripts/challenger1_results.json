@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-10-10T20:34:31.004Z",
+  "targetFile": "public/models/tshirt.obj",
+  "verdict": "FAIL",
+  "overallPass": false,
+  "suite1": {
+    "passed": true,
+    "faceCount": 10192,
+    "isAllTriangles": true,
+    "crossingFaces": 0,
+    "pureFrontFaces": 5234,
+    "pureBackFaces": 4958,
+    "frontMaxU": 0.498,
+    "backMinU": 0.502,
+    "minClearanceFront": 0.0020000000000000018,
+    "minClearanceBack": 0.0020000000000000018,
+    "totalBufferGap": 0.0040000000000000036
+  },
+  "suite2": {
+    "passed": false,
+    "frontNormFaces": 4780,
+    "frontViolations": 889,
+    "frontCompliancePct": 81.40167364016736,
+    "backNormFaces": 5014,
+    "backViolations": 1194,
+    "backCompliancePct": 76.18667730355007,
+    "sideSeamFaces": 398,
+    "sideSeamFront": 149,
+    "sideSeamBack": 249,
+    "sideSeamCrossing": 0
+  },
+  "suite3": {
+    "passed": true,
+    "totalSharedSeamVerts": 54,
+    "leftSeamVerts": 27,
+    "rightSeamVerts": 27,
+    "coincidentPairs": 0,
+    "sharedVTCount": 0,
+    "vtBleedCount": 0
+  }
+}

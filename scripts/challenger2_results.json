@@ -1,0 +1,147 @@
+{
+  "timestamp": "2026-10-11T01:37:49.338Z",
+  "targetFile": "public/models/tshirt.obj",
+  "verdict": "APPROVE",
+  "passedCount": 23,
+  "failedCount": 0,
+  "tests": [
+    {
+      "id": "OBJ_PARSE_SUCCESS",
+      "name": "Three.js OBJLoader parses public/models/tshirt.obj cleanly without exception",
+      "passed": true,
+      "details": "Successfully parsed into THREE.Group"
+    },
+    {
+      "id": "OBJ_SINGLE_MESH",
+      "name": "OBJLoader yields exactly 1 child mesh with name \"TShirt\"",
+      "passed": true,
+      "details": "Children count: 1, Child 0 isMesh: true, name: \"TShirt\""
+    },
+    {
+      "id": "GEOM_EXISTS",
+      "name": "Mesh contains valid BufferGeometry",
+      "passed": true,
+      "details": "BufferGeometry present"
+    },
+    {
+      "id": "POS_COUNT",
+      "name": "Position attribute count equals exactly 10,192 triangles * 3 = 30,576 vertices",
+      "passed": true,
+      "details": "Position count: 30576 (expected 30576)"
+    },
+    {
+      "id": "POS_ARRAY_ELEMENTS",
+      "name": "Position array length equals 30,576 * 3 = 91,728 elements",
+      "passed": true,
+      "details": "Position array length: 91728 (expected 91728)"
+    },
+    {
+      "id": "NORM_COUNT",
+      "name": "Normal attribute count equals 30,576 vertices (array length 91,728)",
+      "passed": true,
+      "details": "Normal count: 30576, array length: 91728"
+    },
+    {
+      "id": "UV_COUNT",
+      "name": "UV attribute count equals 30,576 vertices (array length 61,152)",
+      "passed": true,
+      "details": "UV count: 30576, array length: 61152"
+    },
+    {
+      "id": "BUFFER_NO_NAN_INF",
+      "name": "Zero NaN or Infinite values across all position, normal, and UV buffer attributes",
+      "passed": true,
+      "details": "NaN/Inf values found: 0"
+    },
+    {
+      "id": "NORMALS_UNIT_LENGTH",
+      "name": "All vertex normals are normalized unit vectors (length ~ 1.0)",
+      "passed": true,
+      "details": "Non-unit normals found: 0"
+    },
+    {
+      "id": "BOX_CENTER_ZERO",
+      "name": "Bounding Box center is at origin (0, 0, 0) within 1e-4 tolerance",
+      "passed": true,
+      "details": "Center offset: 0.0000e+0 (threshold 1e-4)"
+    },
+    {
+      "id": "BOX_MAX_DIMENSION_1_90",
+      "name": "Max dimension equals 1.90 units within 1e-4 tolerance",
+      "passed": true,
+      "details": "Max dimension: 1.900000 (diff from 1.90: 2.3842e-8)"
+    },
+    {
+      "id": "STUDIO_NORMALIZATION_STABILITY",
+      "name": "Simulated GarmentPreview3D normalization yields identity displacement and unit scale",
+      "passed": true,
+      "details": "Displacement offset: 0.0000e+0, Scale factor: 1.000000"
+    },
+    {
+      "id": "SHADOW_FLOOR_CLEARANCE",
+      "name": "Hem strictly clears shadow floor plane (y = -1.10) with positive margin (> +0.20 units)",
+      "passed": true,
+      "details": "Floor clearance margin: +0.208331 units (> +0.20 required)"
+    },
+    {
+      "id": "ANTI_MIRROR_FRONT",
+      "name": "Front chest: U increases strictly from Viewer-Left (X < 0) to Viewer-Right (X > 0) [U(right) > U(left)]",
+      "passed": true,
+      "details": "Front avgU: Left=0.2113 < Center=0.2490 < Right=0.2895"
+    },
+    {
+      "id": "FRONT_STRICT_U_HALF",
+      "name": "Front chest probes strictly obey U in [0.0, 0.5]",
+      "passed": true,
+      "details": "Max Front probe U: 0.3149 <= 0.5"
+    },
+    {
+      "id": "ANTI_MIRROR_BACK",
+      "name": "Back view: U increases strictly from Viewed-Left (X > 0) to Viewed-Right (X < 0)",
+      "passed": true,
+      "details": "Back avgU: Viewed-Left=0.7092 < Center=0.7498 < Viewed-Right=0.7909"
+    },
+    {
+      "id": "BACK_STRICT_U_HALF",
+      "name": "Back probes strictly obey U in [0.5, 1.0]",
+      "passed": true,
+      "details": "Min Back probe U: 0.6849 >= 0.5"
+    },
+    {
+      "id": "MULTI_HEIGHT_ANTI_MIRROR",
+      "name": "All 3 vertical height bands (Upper, Mid, Lower) exhibit monotonic positive dU horizontal gradient",
+      "passed": true,
+      "details": "Upper, Mid, and Lower bands all verify dU > 0 for front and back"
+    },
+    {
+      "id": "FRONT_CAMERA_NDC_LINEARITY",
+      "name": "Front camera screen NDC X and Y correlate with texture U and V with Pearson r > +0.95",
+      "passed": true,
+      "details": "Pearson r: NDC_X vs U = 0.9999, NDC_Y vs V = 0.9999"
+    },
+    {
+      "id": "BACK_CAMERA_NDC_LINEARITY",
+      "name": "Back camera screen NDC X and Y correlate with texture U and V with Pearson r > +0.95",
+      "passed": true,
+      "details": "Pearson r: NDC_X vs U = 1.0000, NDC_Y vs V = 0.9999"
+    },
+    {
+      "id": "UPRIGHT_VERTICAL_ORIENTATION",
+      "name": "V increases monotonically with 3D height (+Y), ensuring upright text rendering on Front and Back",
+      "passed": true,
+      "details": "Front dV: +0.3929, Back dV: +0.3937"
+    },
+    {
+      "id": "ZERO_CROSS_BORDER_FACES",
+      "name": "Exactly 0 triangles span across the U = 0.50 boundary partition (zero cross-border bleed)",
+      "passed": true,
+      "details": "Crossing faces count: 0"
+    },
+    {
+      "id": "UV_BOUNDS_VALID",
+      "name": "All UV coordinates strictly lie within [0.0, 1.0] unit square",
+      "passed": true,
+      "details": "U in [0.002000, 0.998000], V in [0.002000, 0.998000]"
+    }
+  ]
+}

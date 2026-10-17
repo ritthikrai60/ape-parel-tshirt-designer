@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,10 +9,31 @@
   --foreground: #131718;
 }
 
+/* Locale & Streetwear Typography Strategy */
+:root[data-locale="th"] {
+  font-family: 'Prompt', 'Kanit', system-ui, -apple-system, sans-serif;
+}
+
+:root[data-locale="en"] {
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+:root[data-locale="ja"] {
+  font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+}
+
+/* Personality Variations */
+:root[data-font-style="technical"] {
+  font-family: 'Kanit', 'Space Grotesk', ui-monospace, sans-serif;
+}
+
+:root[data-font-style="minimal"] {
+  font-family: 'Sarabun', 'Inter', system-ui, sans-serif;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -28,4 +51,29 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #131718;
+}
+
+/* Marketplace filter panel fade-in */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out both;
+}
+
+/* Print optimizations for 50 Tawi certificates and formal documents */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  header,
+  footer {
+    display: none !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 1.2cm;
+  }
 }

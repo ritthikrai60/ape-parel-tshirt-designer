@@ -9,31 +9,108 @@ generator client {
 
 model User {
   id              String           @id @default(cuid())
-  email           String           @unique
-  name            String
+  email           String?          @unique
+  emailVerified   DateTime?
+  image           String?
+  name            String?
+  passwordHash    String?
+  phone           String?          // Customer primary phone number
   role            String           @default("CUSTOMER") // CUSTOMER, CREATOR, SUPPLIER, ADMIN
+  preferences     String?          // JSON: { locale, currency, fontStyle, studioQuality, soundEnabled, ... }
+  
+  // Default Customer Shipping Address & Stripe Radar / Invoicing metadata
+  shippingName     String?
+  shippingPhone    String?
+  shippingAddress  String?
+  shippingCity     String?
+  shippingProvince String?
+  shippingPostal   String?
+  shippingCountry  String?          @default("TH")
+  taxId            String?          // 13-digit Thai Tax Identification Number (th_tin)
+  billingName      String?          // Entity name for E-Tax invoices
+  billingAddress   String?          // Legal address for invoices
+
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  
+  accounts        Account[]
+  sessions        Session[]
+
   creatorProfile  CreatorProfile?
   supplierProfile SupplierProfile?
   designs         DesignDocument[]
   orders          Order[]
   auditEvents     AuditEvent[]
+  notifications   Notification[]
+  orderMessages   OrderMessage[]
+  analyticsEvents AnalyticsEvent[]
+  purchasedLicenses UserArtworkLicense[]
+  favoriteArtworks  ArtworkFavorite[]
+  artworkReviews    ArtworkReview[]
+  supplierReviews   SupplierReview[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
 }
 
 model CreatorProfile {
-  id            String    @id @default(cuid())
-  userId        String    @unique
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  slug          String    @unique
-  displayName   String
-  bio           String?
-  avatarUrl     String?
-  website       String?
-  payoutDetails String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  artworks      Artwork[]
+  id                 String                    @id @default(cuid())
+  userId             String                    @unique
+  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug               String                    @unique
+  displayName        String
+  bio                String?
+  avatarUrl          String?
+  website            String?
+  payoutDetails      String?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  artworks           Artwork[]
+  storefrontSettings CreatorStorefrontSettings?
+  financialAccount   FinancialAccount?
+  payoutRequests     PayoutRequest[]
 }
 
 model SupplierProfile {
@@ -44,16 +121,26 @@ model SupplierProfile {
   companyName      String
   description      String?
   location         String
-  contactEmail     String
-  contactPhone     String?
-  leadTimeDays     Int               @default(5)
-  minOrderQuantity Int               @default(1)
-  verified         Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  products         GarmentProduct[]
-  printingServices PrintingService[]
-  orders           Order[]
+  contactEmail       String
+  contactPhone       String?
+  taxId              String?           // 13-digit Juristic / Tax Identification Number
+  leadTimeDays       Int               @default(5)
+  minOrderQuantity   Int               @default(1)
+  verified           Boolean           @default(false)
+  verificationStatus String            @default("PENDING") // PENDING, APPROVED, REJECTED, ACTION_REQUIRED
+  dbdDocUrl          String?           // Company Affidavit / หนังสือรับรอง DBD
+  vatDocUrl          String?           // ภ.พ.20 VAT Registration Certificate
+  bankBookDocUrl     String?           // Bank Passbook / หน้าสมุดบัญชี
+  machineryPhotos    String?           // JSON array string of factory and DTG equipment images
+  rejectionReason    String?           // Rejection reason or requested revision notes
+  reviewedAt         DateTime?         // Review timestamp
+  reviewedById       String?           // Admin User ID who reviewed
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  products           GarmentProduct[]
+  printingServices   PrintingService[]
+  orders             Order[]
+  reviews            SupplierReview[]
 }
 
 model Artwork {
@@ -69,10 +156,32 @@ model Artwork {
   tags             String?
   status           String              @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
   moderationStatus String              @default("APPROVED") // PENDING, APPROVED, REJECTED
+  moderationReason String?             // Reason for rejection or moderation notes
+  moderatedAt      DateTime?           // Timestamp when reviewed
+  moderatedById    String?             // User ID of reviewing admin/moderator
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   licenseOptions   LicenseOption[]
   obligations      RoyaltyObligation[]
+  fileSpec         ArtworkFileSpec?
+  purchasedLicenses UserArtworkLicense[]
+  favorites        ArtworkFavorite[]
+  reviews          ArtworkReview[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // ARTWORK_APPROVED, ARTWORK_REJECTED, ORDER_UPDATE, SYSTEM
+  title     String
+  message   String
+  metadata  String?  // JSON stringified payload
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isRead])
 }
 
 model LicenseOption {
@@ -87,6 +196,7 @@ model LicenseOption {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   obligations    RoyaltyObligation[]
+  userLicenses   UserArtworkLicense[]
 }
 
 model GarmentProduct {
@@ -186,9 +296,19 @@ model Order {
   shippingPostal  String
   shippingPhone   String?
   snapshotData    String? // JSON snapshot of complete design & pricing at checkout
+  stripePaymentIntentId String?             @unique
+  stripeSessionId       String?
+  stripeClientSecret    String?
+  stripeReceiptUrl      String?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   obligations     RoyaltyObligation[]
+  journalEntries  JournalEntry[]
+  refunds         OrderRefund[]
+  messages        OrderMessage[]
+  userLicenses    UserArtworkLicense[]
+  artworkReviews  ArtworkReview[]
+  supplierReview  SupplierReview?
 }
 
 model RoyaltyObligation {
@@ -237,9 +357,330 @@ model AuditEvent {
   id         String   @id @default(cuid())
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorId    String?  // Optional actor identifier (user ID, 'SYSTEM', 'RECONCILIATION_ENGINE')
   action     String
   entityType String
   entityId   String?
-  payload    String? // JSON string
+  payload    String?  // JSON string
+  metadata   String?  // JSON string for additional context/telemetry
   createdAt  DateTime @default(now())
 }
+
+model CreatorStorefrontSettings {
+  id                 String         @id @default(cuid())
+  creatorId          String         @unique
+  creator            CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  customSlug         String?        @unique
+  bio                String?
+  bannerUrl          String?
+  avatarUrl          String?
+  socialLinks        String?        // JSON string: { instagram, twitter, behance, tiktok, youtube, website }
+  themePreferences   String?        // JSON string: { primaryColor, accentColor, font, mode }
+  featuredArtworkIds String?        // JSON string array of artwork IDs: ["art_1", "art_2"]
+  badgeVerified      Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+}
+
+model ArtworkFileSpec {
+  id                     String   @id @default(cuid())
+  artworkId              String   @unique
+  artwork                Artwork  @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  storagePath            String   // Local filesystem path e.g. public/uploads/masters/[id].png
+  storageKey             String?  // Storage key / relative reference e.g. masters/[id].png
+  mimeType               String   // image/png, image/svg+xml, image/tiff, image/jpeg
+  width                  Int      // Width in pixels
+  height                 Int      // Height in pixels
+  dpi                    Int      @default(300) // Minimum 300 DPI (or 0 for vector)
+  colorSpace             String   @default("sRGB") // sRGB, Display P3, CMYK
+  hasTransparency        Boolean  @default(false)
+  isVector               Boolean  @default(false)
+  previewWatermarkedPath String?  // Watermarked public preview path
+  fileSize               Int      // File size in bytes
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model CommissionRule {
+  id            String    @id @default(cuid())
+  name          String    @unique // e.g. "STANDARD_15_85", "EXCLUSIVE_CREATOR_TIER"
+  platformRate  Float     @default(0.15) // 15% platform commission rate
+  creatorRate   Float     @default(0.85) // 85% creator royalty share rate
+  isActive      Boolean   @default(true)
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+  description   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model FinancialAccount {
+  id            String          @id @default(cuid())
+  accountType   String          // CREATOR, PLATFORM, ESCROW
+  accountNumber String          @unique // e.g. "ACC-CREATOR-dash-ape", "ACC-PLATFORM-REVENUE", "ACC-ESCROW-HOLDING"
+  balance       Int             @default(0) // In THB
+  currency      String          @default("THB")
+  creatorId     String?         @unique
+  creator       CreatorProfile? @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  status        String          @default("ACTIVE") // ACTIVE, FROZEN, CLOSED
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  journalEntries JournalEntry[]
+}
+
+model JournalEntry {
+  id           String           @id @default(cuid())
+  accountId    String
+  account      FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  entryType    String           // DEBIT, CREDIT
+  amount       Int              // In THB (positive integer)
+  balanceAfter Int              // Balance of this account after this transaction
+  orderId      String?
+  order        Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  reference    String?          // e.g. orderNumber, settlementNumber
+  description  String?
+  createdAt    DateTime         @default(now())
+}
+
+model ReconciliationReport {
+  id                          String    @id @default(cuid())
+  period                      String    // e.g. "2026-10", "2026-W41"
+  periodStart                 DateTime?
+  periodEnd                   DateTime?
+  totalGmv                    Int       @default(0) // Gross Merchandise Value in THB
+  totalCommission             Int       @default(0) // Total 15% platform commission
+  totalCreatorRoyalties       Int       @default(0) // Total 85% creator royalties
+  matchedItemsCount           Int       @default(0)
+  discrepancyCount            Int       @default(0)
+  status                      String    @default("BALANCED") // BALANCED, DISCREPANCY, PENDING, RECONCILED
+  balanceConservationVerified Boolean   @default(true) // Verified sum(Credits) == sum(Debits)
+  discrepancyDetails          String?   // JSON diagnostics if discrepancy detected
+  generatedBy                 String?   // User ID or "SYSTEM"
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+}
+
+model PayoutRequest {
+  id                   String         @id @default(cuid())
+  creatorId            String
+  creator              CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  grossAmount          Int            // in THB
+  withholdingTaxRate   Float          @default(0.03) // 3% Thai Withholding Tax
+  withholdingTaxAmount Int            // in THB
+  netAmount            Int            // in THB
+  paymentMethod        String         @default("PROMPTPAY") // PROMPTPAY, BANK_TRANSFER
+  bankName             String?
+  bankAccountNumber    String?
+  promptPayId          String?
+  accountName          String
+  status               String         @default("PENDING") // PENDING, APPROVED, PROCESSING, PAID, REJECTED
+  rejectionReason      String?
+  referenceNumber      String         @unique // e.g. "PO-202610-001"
+  certificate50TwiUrl  String?        // Digital 50-Twi receipt reference
+  paidAt               DateTime?
+  approvedById         String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+}
+
+model OrderRefund {
+  id             String    @id @default(cuid())
+  orderId        String
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refundType     String    @default("FULL") // FULL, PARTIAL
+  amount         Int       // in THB
+  reason         String
+  restockedUnits Int       @default(0)
+  voidedRoyalty  Int       @default(0)
+  status         String    @default("COMPLETED")
+  processedById  String?
+  createdAt      DateTime  @default(now())
+}
+
+model MarketplaceBanner {
+  id          String    @id @default(cuid())
+  title       String
+  subtitle    String?
+  badgeText   String?   // e.g. "EXCLUSIVE DROP", "SUMMER 2026"
+  ctaText     String    @default("Explore Collection")
+  ctaLink     String    @default("/marketplace")
+  imageUrl    String?
+  bgColor     String    @default("#131718")
+  textColor   String    @default("#FBF9F5")
+  isActive    Boolean   @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  priority    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model PromoCode {
+  id             String    @id @default(cuid())
+  code           String    @unique // e.g. "APEPARL100", "WELCOME50"
+  discountType   String    @default("FIXED") // FIXED, PERCENT
+  discountValue  Int       // e.g. 50 (฿50) or 10 (10%)
+  minOrderAmount Int       @default(0) // Minimum total order amount in THB
+  maxUses        Int       @default(100)
+  usedCount      Int       @default(0)
+  isActive       Boolean   @default(true)
+  sponsoredBy    String    @default("PLATFORM") // PLATFORM, CREATOR_COSHARE
+  startsAt       DateTime  @default(now())
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model OrderMessage {
+  id             String    @id @default(cuid())
+  orderId        String
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderRole     String    // CUSTOMER, SUPPLIER, ADMIN, SYSTEM
+  message        String
+  imageUrl       String?   // Compressed image (Base64 data URL or storage URL)
+  imageExpiresAt DateTime? // TTL: 7 days from creation
+  isImageExpired Boolean   @default(false)
+  isFlagged      Boolean   @default(false) // Flagged for fraud / off-platform negotiation
+  flagReason     String?   // Reason e.g. "OFF_PLATFORM_CONTACT: LINE ID detected"
+  isRead         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([isFlagged])
+}
+
+model NewsletterSubscriber {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  status           String    @default("ACTIVE") // ACTIVE, UNSUBSCRIBED
+  source           String    @default("FOOTER") // FOOTER, CHECKOUT, POPUP
+  consentGiven     Boolean   @default(true)
+  consentTimestamp DateTime  @default(now())
+  unsubscribeToken String    @unique @default(cuid())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status])
+}
+
+model AdminAlertSubscriber {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String?
+  alertTypes String   @default("[\"NEW_ORDER\",\"FRAUD_ALERT\",\"PAYOUT_REQUEST\",\"MODERATION_PENDING\"]") // JSON array string
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model ConsentLog {
+  id         String   @id @default(cuid())
+  identifier String   // Anonymized Session Token or User ID
+  necessary  Boolean  @default(true)
+  analytics  Boolean  @default(false)
+  marketing  Boolean  @default(false)
+  policyVer  String   @default("1.0")
+  userAgent  String?
+  ipAddress  String?  // Anonymized IP
+  createdAt  DateTime @default(now())
+
+  @@index([identifier])
+}
+
+model AnalyticsEvent {
+  id           String   @id @default(cuid())
+  eventType    String   @default("PAGEVIEW") // PAGEVIEW, VIEW_ARTWORK, OPEN_STUDIO, START_CHECKOUT, CUSTOM_EVENT
+  path         String   // e.g. "/marketplace", "/creators/dash-ape", "/studio"
+  sessionToken String   // Anonymized daily/session hash e.g. "sess_ab12..."
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  entityType   String?  // e.g. "ARTWORK", "CREATOR", "GARMENT"
+  entityId     String?  // e.g. artworkId, creatorSlug
+  referrer     String?
+  deviceType   String   @default("DESKTOP") // DESKTOP, MOBILE, TABLET
+  browser      String?  // Chrome, Safari, Firefox, Edge, etc.
+  os           String?  // Windows, macOS, iOS, Android, Linux
+  country      String?  @default("TH")
+  metadata     String?  // JSON string e.g. { title, price, ... }
+  createdAt    DateTime @default(now())
+
+  @@index([eventType, createdAt])
+  @@index([path, createdAt])
+  @@index([sessionToken, createdAt])
+  @@index([userId])
+}
+
+model UserArtworkLicense {
+  id                String        @id @default(cuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artworkId         String
+  artwork           Artwork       @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  licenseOptionId   String
+  licenseOption     LicenseOption @relation(fields: [licenseOptionId], references: [id], onDelete: Cascade)
+  orderId           String?
+  order             Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  certificateNumber String        @unique // e.g. LIC-PIP-2026-XXXX
+  agreementSnapshot String        // Full legal terms, parties, metadata in JSON
+  sha256Hash        String        // Cryptographic fingerprint
+  status            String        @default("ACTIVE") // ACTIVE, REVOKED
+  acquiredAt        DateTime      @default(now())
+
+  @@unique([userId, artworkId])
+  @@index([userId])
+  @@index([certificateNumber])
+}
+
+model ArtworkFavorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artworkId String
+  artwork   Artwork  @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, artworkId])
+  @@index([userId])
+  @@index([artworkId])
+}
+
+model ArtworkReview {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artworkId String
+  artwork   Artwork  @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  orderId   String?
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  rating    Int      @default(5) // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([artworkId])
+  @@index([userId])
+}
+
+model SupplierReview {
+  id         String          @id @default(cuid())
+  supplierId String
+  supplier   SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId    String          @unique // 1 review per delivered order
+  order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  rating     Int             @default(5) // 1-5
+  comment    String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([supplierId])
+  @@index([userId])
+}
+
+

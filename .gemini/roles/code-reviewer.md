@@ -11,6 +11,11 @@ To objectively evaluate code changes against the project's Engineering Standards
 - Provide clear, actionable feedback.
 - Transition task states from `REVIEW` to `VERIFYING` (if passing) or `FAILED` (if rejected).
 
+## Attached Factory Skills
+- `security-auditor`
+- `code-review-excellence`
+- `typescript-pro`
+
 ## Explicit Exclusions
 - May NOT implement the features they are reviewing.
 - May NOT change the task requirements.

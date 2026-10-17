@@ -44,12 +44,12 @@ export function createProceduralTShirtGeometry(): THREE.BufferGeometry {
   const numYTorso = 24;
   const numXTorso = 20;
 
-  const uFrontMin = 0.04;
-  const uFrontMax = 0.46;
-  const uBackMin = 0.54;
-  const uBackMax = 0.96;
-  const vMin = 0.05;
-  const vMax = 0.95;
+  const uFrontMin = 0.0;
+  const uFrontMax = 0.5;
+  const uBackMin = 0.5;
+  const uBackMax = 1.0;
+  const vMin = 0.0;
+  const vMax = 1.0;
 
   function getWidth(y: number): number {
     if (y < yArmpit) {
@@ -184,7 +184,7 @@ export function createProceduralTShirtGeometry(): THREE.BufferGeometry {
     const zBase = 0.0;
     const xCuff = dir * 0.95;
     const yCuff = 0.25;
-    const zCuff = 0.02;
+    const zCuff = 0.0;
 
     const sleeveGrid: number[][] = [];
     for (let s = 0; s <= numSleeveSegments; s++) {
@@ -205,7 +205,7 @@ export function createProceduralTShirtGeometry(): THREE.BufferGeometry {
         const vz = cZ + rz;
 
         let u: number;
-        if (rz >= 0) {
+        if (vz >= 0) {
           u = Math.min(uFrontMax, Math.max(uFrontMin, isRight ? 0.35 + 0.12 * tS : 0.15 - 0.12 * tS));
         } else {
           u = Math.min(uBackMax, Math.max(uBackMin, isRight ? 0.65 - 0.12 * tS : 0.85 + 0.12 * tS));

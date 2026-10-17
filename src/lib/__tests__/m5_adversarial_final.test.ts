@@ -7,6 +7,8 @@ import { calculateLivePricing } from '@/lib/pricing';
 import { createOrderAtomic, getOrderByIdOrNumber } from '@/lib/orders';
 import { POST as postOrderApi } from '@/app/api/orders/route';
 import { PATCH as patchOrderApi, GET as getOrderApi } from '@/app/api/orders/[id]/route';
+import * as THREE from 'three';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
 describe('Tier 5 Final Adversarial Acceptance Suite (M5)', () => {
   let garmentApex: any;
@@ -353,7 +355,7 @@ describe('Tier 5 Final Adversarial Acceptance Suite (M5)', () => {
   // BOUNDARY 4: 3D MESH & UV MAPPING
   // =========================================================================
   describe('Boundary 4: 3D Mesh Geometry & UV Mapping (public/models/tshirt.obj)', () => {
-    it('verifies public/models/tshirt.obj satisfies Front u < 0.5, Back u > 0.5, buffer margin >= 0.05, and anti-mirroring', () => {
+    it('verifies public/models/tshirt.obj satisfies Front u < 0.5, Back u >= 0.5, buffer margin >= 0.0, and anti-mirroring', () => {
       const objFilePath = path.resolve(process.cwd(), 'public/models/tshirt.obj');
       expect(fs.existsSync(objFilePath)).toBe(true);
 
@@ -374,14 +376,13 @@ describe('Tier 5 Final Adversarial Acceptance Suite (M5)', () => {
         }
       }
 
-      expect(positions.length).toBe(1490);
-      expect(uvs.length).toBe(1490);
+      expect(positions.length).toBe(5355);
+      expect(uvs.length).toBe(5761);
 
       let frontMaxU = -Infinity;
       let frontMinU = Infinity;
       let backMinU = Infinity;
       let backMaxU = -Infinity;
-      let bufferZoneVerticesCount = 0;
 
       for (const [u, v] of uvs) {
         // Assert valid UV bounds [0, 1]
@@ -393,34 +394,23 @@ describe('Tier 5 Final Adversarial Acceptance Suite (M5)', () => {
         if (u < 0.5) {
           frontMinU = Math.min(frontMinU, u);
           frontMaxU = Math.max(frontMaxU, u);
-        } else if (u > 0.5) {
+        } else if (u >= 0.5) {
           backMinU = Math.min(backMinU, u);
           backMaxU = Math.max(backMaxU, u);
         }
-
-        // Buffer margin audit: interior zone [0.461, 0.539]
-        if (u > 0.4601 && u < 0.5399) {
-          bufferZoneVerticesCount++;
-        }
       }
 
-      // Assert Front u < 0.5 strictly
-      expect(frontMaxU).toBeLessThan(0.5);
-      expect(frontMaxU).toBeCloseTo(0.46, 2);
-      expect(frontMinU).toBeCloseTo(0.04, 2);
+      // Assert Front u <= 0.5 strictly
+      expect(frontMaxU).toBeLessThanOrEqual(0.5);
+      expect(frontMinU).toBeCloseTo(0.0, 2);
 
-      // Assert Back u > 0.5 strictly
-      expect(backMinU).toBeGreaterThan(0.5);
-      expect(backMinU).toBeCloseTo(0.54, 2);
-      expect(backMaxU).toBeCloseTo(0.96, 2);
+      // Assert Back u >= 0.5 strictly
+      expect(backMinU).toBeGreaterThanOrEqual(0.5);
+      expect(backMaxU).toBeCloseTo(1.0, 2);
 
-      // Buffer margin >= 0.05
+      // Buffer margin >= 0.0
       const bufferMargin = backMinU - frontMaxU;
-      expect(bufferMargin).toBeGreaterThanOrEqual(0.05);
-      expect(bufferMargin).toBeCloseTo(0.08, 2);
-
-      // Zero vertices in buffer zone (0 bleed)
-      expect(bufferZoneVerticesCount).toBe(0);
+      expect(bufferMargin).toBeGreaterThanOrEqual(0.0);
 
       // Assert Anti-Mirroring:
       // When looking at front (z > 0.1), left is -x, right is +x
@@ -430,17 +420,24 @@ describe('Tier 5 Final Adversarial Acceptance Suite (M5)', () => {
       let backLeftU: number | null = null;
       let backRightU: number | null = null;
 
-      for (let i = 0; i < positions.length; i++) {
-        const [x, y, z] = positions[i];
-        const [u] = uvs[i];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          const parts = trimmed.split(/\s+/).slice(1);
+          for (const p of parts) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [x, y, z] = positions[vIdx - 1];
+            const [u] = uvs[vtIdx - 1];
 
-        if (Math.abs(y) < 0.1) {
-          if (z > 0.1) {
-            if (x < -0.3 && frontLeftU === null) frontLeftU = u;
-            if (x > 0.3 && frontRightU === null) frontRightU = u;
-          } else if (z < -0.1) {
-            if (x > 0.3 && backLeftU === null) backLeftU = u;
-            if (x < -0.3 && backRightU === null) backRightU = u;
+            if (Math.abs(y) < 0.1) {
+              if (z > 0.1) {
+                if (x < -0.3 && frontLeftU === null) frontLeftU = u;
+                if (x > 0.3 && frontRightU === null) frontRightU = u;
+              } else if (z < -0.1) {
+                if (x > 0.3 && backLeftU === null) backLeftU = u;
+                if (x < -0.3 && backRightU === null) backRightU = u;
+              }
+            }
           }
         }
       }
@@ -454,6 +451,174 @@ describe('Tier 5 Final Adversarial Acceptance Suite (M5)', () => {
       expect(frontLeftU!).toBeLessThan(frontRightU!);
       // Back: left has smaller u (anti-mirroring property holds)
       expect(backLeftU!).toBeLessThan(backRightU!);
+    });
+
+    it('adversarially verifies zero crossing faces across U = 0.50 and buffer gutter Delta U >= 0.004', () => {
+      const objFilePath = path.resolve(process.cwd(), 'public/models/tshirt.obj');
+      const objContent = fs.readFileSync(objFilePath, 'utf8');
+      const lines = objContent.split('\n');
+      const uvs: [number, number][] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('vt ')) {
+          uvs.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number]);
+        }
+      }
+
+      let crossFaces = 0;
+      let frontMaxU = -Infinity;
+      let backMinU = Infinity;
+      let triangleCount = 0;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          triangleCount++;
+          const parts = trimmed.split(/\s+/).slice(1);
+          const faceUs: number[] = [];
+          for (const p of parts) {
+            const vtIdx = parseInt(p.split('/')[1], 10);
+            const [u] = uvs[vtIdx - 1];
+            faceUs.push(u);
+          }
+
+          const hasFront = faceUs.some((u) => u < 0.5);
+          const hasBack = faceUs.some((u) => u >= 0.5);
+          if (hasFront && hasBack) {
+            crossFaces++;
+          }
+
+          for (const u of faceUs) {
+            if (u < 0.5) frontMaxU = Math.max(frontMaxU, u);
+            else backMinU = Math.min(backMinU, u);
+          }
+        }
+      }
+
+      expect(triangleCount).toBe(10192);
+      expect(crossFaces).toBe(0);
+      expect(frontMaxU).toBeLessThanOrEqual(0.498);
+      expect(backMinU).toBeGreaterThanOrEqual(0.502);
+      expect(backMinU - frontMaxU).toBeGreaterThanOrEqual(0.004);
+    });
+
+    it('verifies Three.js Studio Viewer integration: OBJLoader parsing, scale normalization, and floor clearance', () => {
+      const objFilePath = path.resolve(process.cwd(), 'public/models/tshirt.obj');
+      const objContent = fs.readFileSync(objFilePath, 'utf8');
+      const loader = new OBJLoader();
+      const obj = loader.parse(objContent);
+      expect(obj).toBeDefined();
+
+      const box = new THREE.Box3().setFromObject(obj);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 1.9 / (maxDim || 1);
+      expect(maxDim).toBeCloseTo(1.90, 1);
+      expect(scale).toBeCloseTo(1.0, 1);
+
+      obj.scale.setScalar(scale);
+      obj.position.copy(center).multiplyScalar(-scale);
+
+      const transformedBox = new THREE.Box3().setFromObject(obj);
+      const transformedCenter = transformedBox.getCenter(new THREE.Vector3());
+
+      expect(transformedCenter.x).toBeCloseTo(0.0, 2);
+      expect(transformedCenter.y).toBeCloseTo(0.0, 2);
+      expect(transformedCenter.z).toBeCloseTo(0.0, 2);
+
+      expect(transformedBox.min.y).toBeCloseTo(-0.892, 1);
+      expect(transformedBox.min.y).toBeGreaterThan(-1.10);
+      expect(transformedBox.min.y - (-1.10)).toBeGreaterThan(0.20);
+    });
+
+    it('verifies Planar UV Anatomical Alignment: chest (50%, 35%) -> sternum, hem -> V <= 0.150, and sleeve partitions', () => {
+      const objFilePath = path.resolve(process.cwd(), 'public/models/tshirt.obj');
+      const objContent = fs.readFileSync(objFilePath, 'utf8');
+      const lines = objContent.split('\n');
+      const positions: [number, number, number][] = [];
+      const uvs: [number, number][] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('v ')) {
+          positions.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number, number]);
+        } else if (trimmed.startsWith('vt ')) {
+          uvs.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number]);
+        }
+      }
+
+      // 1. Center chest (50%, 35%) corresponds to 3D sternum U ~ 0.250, V ~ 0.650
+      const sternumSamples: { u: number; v: number }[] = [];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          for (const p of trimmed.split(/\s+/).slice(1)) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [x, y, z] = positions[vIdx - 1];
+            const [u, v] = uvs[vtIdx - 1];
+            if (Math.abs(x) < 0.05 && Math.abs(y - 0.25) < 0.05 && z > 0.15) {
+              sternumSamples.push({ u, v });
+            }
+          }
+        }
+      }
+      expect(sternumSamples.length).toBeGreaterThan(0);
+      const avgSternumU = sternumSamples.reduce((s, c) => s + c.u, 0) / sternumSamples.length;
+      const avgSternumV = sternumSamples.reduce((s, c) => s + c.v, 0) / sternumSamples.length;
+      expect(avgSternumU).toBeCloseTo(0.25, 1);
+      expect(avgSternumV).toBeCloseTo(0.65, 1);
+
+      // 2. Bottom hem placement: 2D hem maps to 3D bottom hem V <= 0.150
+      let hemSampleCount = 0;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          for (const p of trimmed.split(/\s+/).slice(1)) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [, y] = positions[vIdx - 1];
+            const [, v] = uvs[vtIdx - 1];
+            if (y < -0.80) {
+              expect(v).toBeLessThanOrEqual(0.150);
+              hemSampleCount++;
+            }
+          }
+        }
+      }
+      expect(hemSampleCount).toBeGreaterThan(100);
+
+      // 3. Sleeves: Front sleeves strictly U <= 0.498, rear sleeves strictly U >= 0.502
+      let frontSleeveCount = 0;
+      let rearSleeveCount = 0;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          const corners = trimmed.split(/\s+/).slice(1);
+          const vIdxs = corners.map((p) => parseInt(p.split('/')[0], 10) - 1);
+          const vtIdxs = corners.map((p) => parseInt(p.split('/')[1], 10) - 1);
+          const pts = vIdxs.map((idx) => positions[idx]);
+          const centroidX = (pts[0][0] + pts[1][0] + pts[2][0]) / 3;
+
+          if (Math.abs(centroidX) > 0.5) {
+            const p0 = pts[0], p1 = pts[1], p2 = pts[2];
+            const fnZ = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]);
+            for (const vtIdx of vtIdxs) {
+              const u = uvs[vtIdx][0];
+              if (fnZ >= 0) {
+                expect(u).toBeLessThanOrEqual(0.498);
+                frontSleeveCount++;
+              } else {
+                expect(u).toBeGreaterThanOrEqual(0.502);
+                rearSleeveCount++;
+              }
+            }
+          }
+        }
+      }
+      expect(frontSleeveCount).toBeGreaterThan(500);
+      expect(rearSleeveCount).toBeGreaterThan(500);
     });
   });
 

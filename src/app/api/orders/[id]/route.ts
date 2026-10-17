@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getOrderByIdOrNumber } from '@/lib/orders';
+import { sendOrderInProductionEmail, sendOrderShippedEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,11 +12,14 @@ const updateOrderStatusSchema = z.object({
     'IN_PRODUCTION',
     'QA',
     'QA_PASSED',
+    'READY_TO_PACK',
     'SHIPPED',
     'DELIVERED',
     'CANCELLED',
   ]),
   notes: z.string().max(500).optional(),
+  courier: z.string().max(100).optional(),
+  trackingNumber: z.string().max(100).optional(),
 });
 
 /**
@@ -118,12 +122,16 @@ export async function PATCH(
     );
   }
 
-  const { status, notes } = parseResult.data;
+  const { status, notes, courier, trackingNumber } = parseResult.data;
 
   try {
     const existingOrder = await prisma.order.findFirst({
       where: {
         OR: [{ id: id.trim() }, { orderNumber: id.trim() }],
+      },
+      include: {
+        customer: true,
+        supplier: true,
       },
     });
 
@@ -137,12 +145,42 @@ export async function PATCH(
       );
     }
 
+    if (existingOrder.status === 'CANCELLED' && status !== 'CANCELLED') {
+      return NextResponse.json(
+        {
+          error: 'Bad Request',
+          message: `Cannot update status of cancelled order "${existingOrder.orderNumber}".`,
+        },
+        { status: 400 }
+      );
+    }
+
     const previousStatus = existingOrder.status;
+
+    let updatedSnapshotData = existingOrder.snapshotData;
+    if (courier || trackingNumber) {
+      let snap: Record<string, any> = {};
+      try {
+        if (existingOrder.snapshotData) {
+          snap = JSON.parse(existingOrder.snapshotData);
+        }
+      } catch {}
+      snap.fulfillment = {
+        courier: courier || snap.fulfillment?.courier || 'Thailand Post EMS',
+        trackingNumber: trackingNumber || snap.fulfillment?.trackingNumber || '',
+        dispatchedAt: new Date().toISOString(),
+        packingSlipGenerated: true,
+      };
+      updatedSnapshotData = JSON.stringify(snap);
+    }
 
     const updatedOrder = await prisma.$transaction(async (tx) => {
       const order = await tx.order.update({
         where: { id: existingOrder.id },
-        data: { status },
+        data: {
+          status,
+          ...(updatedSnapshotData !== existingOrder.snapshotData ? { snapshotData: updatedSnapshotData } : {}),
+        },
       });
 
       await tx.auditEvent.create({
@@ -154,6 +192,8 @@ export async function PATCH(
             previousStatus,
             newStatus: status,
             notes: notes ?? null,
+            courier: courier ?? null,
+            trackingNumber: trackingNumber ?? null,
             updatedAt: new Date().toISOString(),
           }),
         },
@@ -161,6 +201,28 @@ export async function PATCH(
 
       return order;
     });
+
+    // Asynchronously dispatch Order State notification emails to customer
+    const recipientEmail = existingOrder.customer?.email;
+    if (recipientEmail && previousStatus !== status) {
+      if (status === 'IN_PRODUCTION') {
+        sendOrderInProductionEmail({
+          id: existingOrder.id,
+          orderNumber: existingOrder.orderNumber,
+          customerEmail: recipientEmail,
+          supplierName: existingOrder.supplier?.companyName || 'Apex Factory',
+        }).catch((err) => console.warn('[Order State Email] Failed to send IN_PRODUCTION email:', err));
+      } else if (status === 'SHIPPED') {
+        sendOrderShippedEmail({
+          id: existingOrder.id,
+          orderNumber: existingOrder.orderNumber,
+          customerEmail: recipientEmail,
+          carrierName: courier || 'Thailand Post EMS',
+          trackingNumber: trackingNumber || 'TH9982410-APX',
+          shippingAddress: existingOrder.shippingAddress,
+        }).catch((err) => console.warn('[Order State Email] Failed to send SHIPPED email:', err));
+      }
+    }
 
     return NextResponse.json(
       {

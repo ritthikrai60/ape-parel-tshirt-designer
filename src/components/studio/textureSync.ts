@@ -21,6 +21,80 @@ export interface TextureBakeOptions {
 }
 
 /**
+ * Draws an artwork image onto the canvas, automatically keying out solid dark
+ * backgrounds if all 4 corners of the image are opaque black (e.g. from JPEG/unclipped assets).
+ */
+function drawArtworkWithSmartTransparency(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number
+): void {
+  // Safe environment check (browser vs node)
+  if (typeof document === 'undefined') {
+    ctx.drawImage(img, dx, dy, dw, dh);
+    return;
+  }
+
+  try {
+    const tempCanvas = document.createElement('canvas');
+    const sampleW = Math.min(512, Math.max(64, Math.round(dw)));
+    const sampleH = Math.min(512, Math.max(64, Math.round(dh)));
+    tempCanvas.width = sampleW;
+    tempCanvas.height = sampleH;
+
+    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+    if (!tempCtx) {
+      ctx.drawImage(img, dx, dy, dw, dh);
+      return;
+    }
+
+    tempCtx.drawImage(img, 0, 0, sampleW, sampleH);
+    const imgData = tempCtx.getImageData(0, 0, sampleW, sampleH);
+    const data = imgData.data;
+
+    // Check four corners: if all 4 corners are dark black (R, G, B < 25 and A > 200)
+    const corners = [
+      0,
+      (sampleW - 1) * 4,
+      ((sampleH - 1) * sampleW) * 4,
+      ((sampleH - 1) * sampleW + (sampleW - 1)) * 4,
+    ];
+
+    const hasBlackCorners = corners.every((idx) => {
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      const a = data[idx + 3];
+      return a > 200 && r < 25 && g < 25 && b < 25;
+    });
+
+    if (hasBlackCorners) {
+      // Key out dark pixels with smooth alpha feathering
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const maxBright = Math.max(r, g, b);
+        if (maxBright < 20) {
+          data[i + 3] = 0; // Transparent
+        } else if (maxBright < 36) {
+          data[i + 3] = Math.round(((maxBright - 20) / 16) * data[i + 3]);
+        }
+      }
+      tempCtx.putImageData(imgData, 0, 0);
+      ctx.drawImage(tempCanvas, dx, dy, dw, dh);
+    } else {
+      ctx.drawImage(img, dx, dy, dw, dh);
+    }
+  } catch {
+    ctx.drawImage(img, dx, dy, dw, dh);
+  }
+}
+
+/**
  * Draws artwork elements for a given surface onto the 2D canvas context.
  * surfaceOffsetX: 0 for FRONT (left half 0..512), 512 for BACK (right half 512..1024)
  */
@@ -54,8 +128,8 @@ function renderSurfaceArtworkLayers(
       ctx.rotate((el.rotation * Math.PI) / 180);
     }
 
-    // Draw image centered around (0, 0)
-    ctx.drawImage(img, -elemW / 2, -elemH / 2, elemW, elemH);
+    // Draw image centered around (0, 0) with smart transparency
+    drawArtworkWithSmartTransparency(ctx, img, -elemW / 2, -elemH / 2, elemW, elemH);
     ctx.restore();
   }
 }

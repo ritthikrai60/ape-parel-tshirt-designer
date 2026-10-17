@@ -1,28 +1,16 @@
-# Progress — Worker M2_1 (Royalty Ledger & Supplier Specs Builder)
-
-Last visited: 2026-10-10T00:08:30Z
-
-## Status
-- Current step: Complete — Writing Handoff Report
-- Next step: Submit completion message to orchestrator
-
-## Completed Milestones
-- [x] Read DISPATCH.md, ORIGINAL_REQUEST.md, PROJECT.md
-- [x] Read Explorer handoff reports and proposed implementations
-- [x] Created BRIEFING.md and initialized progress tracking
-- [x] 1. Update `src/lib/types.ts`
-- [x] 2. Implement `src/lib/orders.ts` (atomic order placement with prisma.$transaction)
-- [x] 3. Implement `src/lib/royalties.ts` (creator ledger summary & payout settlement)
-- [x] 4. Implement `src/lib/production.ts` (generateProductionPackage resolving SKUs, cm coordinates, asset URLs)
-- [x] 5. Implement API routes:
-  - `src/app/api/orders/route.ts`
-  - `src/app/api/orders/[id]/route.ts`
-  - `src/app/api/orders/[id]/production/route.ts`
-  - `src/app/api/royalties/settle/route.ts`
-- [x] 6. Create integration test suite `src/lib/__tests__/orders_royalties.test.ts` (19 passing tests)
-- [x] 7. Verification:
-  - `npx tsc --noEmit` -> 0 errors
-  - `npm test` -> 109/109 tests passed
-  - `npm run build` -> Clean production build completed
-- [ ] 8. Write `handoff.md`
-- [ ] 9. Send completion message to orchestrator
+# Progress — Worker M2-1
+Last visited: 2026-10-10T19:10:00Z
+- [x] Initialized & Briefing updated
+- [x] Predecessor reports & PROJECT.md reviewed
+- [x] Investigate target test files:
+  - [x] src/lib/__tests__/m5_graphics_production_challenger.test.ts
+  - [x] src/lib/__tests__/studio_pipeline.test.ts
+  - [x] src/lib/__tests__/studio_challenger.test.ts
+  - [x] src/lib/__tests__/m5_adversarial_final.test.ts
+- [x] Align m5_graphics_production_challenger.test.ts (1462 v, 1104 vt, 1174 vn, face loops, all 21 tests passing)
+- [x] Align studio_pipeline.test.ts (line 111 u >= 0.500, sleeve z in tshirtGeometry.ts, all 12 tests passing)
+- [x] Align studio_challenger.test.ts (1462 v, 1174 vn, 1104 vt, face loops, all 12 tests passing)
+- [x] Align m5_adversarial_final.test.ts (Boundary 4 unskipped, face loops, all 13 tests passing)
+- [x] Verify GarmentPreview3D.tsx and DesignStudioClient integration
+- [x] Run vitest suites, tsc, and build verification (323/323 tests passed, tsc 0 errors, build exit 0)
+- [x] Document changes and test results in handoff.md

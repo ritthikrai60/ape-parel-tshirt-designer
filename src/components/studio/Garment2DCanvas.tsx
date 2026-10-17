@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { DesignElement } from '@/lib/types';
-import { RotateCw } from 'lucide-react';
+import { RotateCw, Trash2, Crosshair, ArrowUp, ArrowDown } from 'lucide-react';
 
 export interface Garment2DCanvasProps {
   surface: 'FRONT' | 'BACK';
@@ -235,7 +235,7 @@ export const Garment2DCanvas: React.FC<Garment2DCanvasProps> = ({
     <div
       ref={containerRef}
       onClick={() => onSelectElement(null)}
-      className={`relative w-full aspect-square max-w-[620px] mx-auto select-none overflow-hidden rounded-xl bg-transparent flex items-center justify-center ${className}`}
+      className={`relative h-full w-auto max-h-full max-w-full aspect-square mx-auto select-none overflow-hidden rounded-xl bg-transparent flex items-center justify-center ${className}`}
     >
       {/* 1. T-Shirt SVG Silhouette on Transparent Backdrop */}
       <svg
@@ -278,11 +278,34 @@ export const Garment2DCanvas: React.FC<Garment2DCanvasProps> = ({
             strokeOpacity={seam.opacity}
           />
         ))}
+        {/* 2. Print Safe Zone Area (Subtle dashed border for standard 35x45 cm DTG platen) */}
+        <rect
+          x="260"
+          y="180"
+          width="480"
+          height="620"
+          rx="12"
+          fill="none"
+          stroke={garmentColorHex === '#131718' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)'}
+          strokeWidth="1.5"
+          strokeDasharray="6 6"
+        />
+        <text
+          x="270"
+          y="200"
+          fill={garmentColorHex === '#131718' ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)'}
+          fontSize="10"
+          fontFamily="monospace"
+          letterSpacing="1"
+        >
+          {surface} PRINT ZONE (35×45 CM)
+        </text>
       </svg>
 
-      {/* 2. Interactive Artwork Layers (NO INTRUSIVE BOUNDING BOXES) */}
+      {/* 3. Interactive Artwork Layers with Precision Coordinate Validation */}
       {elements.map((el) => {
         const isSelected = el.id === selectedElementId;
+        const isOffCenter = Math.abs(el.x - 50) > 30 || el.y < 15 || el.y > 85;
 
         return (
           <div
@@ -303,8 +326,12 @@ export const Garment2DCanvas: React.FC<Garment2DCanvasProps> = ({
               cursor: interactive ? (isSelected ? 'grab' : 'pointer') : 'default',
             }}
             className={`group transition-shadow ${
+              isSelected ? 'touch-none' : ''
+            } ${
               isSelected
-                ? 'ring-1 ring-warm/80 ring-offset-1'
+                ? isOffCenter
+                  ? 'ring-2 ring-amber-500 ring-offset-1'
+                  : 'ring-2 ring-warm ring-offset-1'
                 : 'hover:ring-1 hover:ring-borderCol/50'
             }`}
           >
@@ -316,39 +343,123 @@ export const Garment2DCanvas: React.FC<Garment2DCanvasProps> = ({
               className="w-full h-full object-contain pointer-events-none drop-shadow-sm"
             />
 
-            {/* Transform Controls ONLY shown on active selection */}
+            {/* Transform Controls & Real-Time Coordinate HUD */}
             {isSelected && interactive && (
               <>
-                {/* Center subtle label */}
-                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-ink/90 text-paper text-[10px] font-mono px-1.5 py-0.5 rounded shadow pointer-events-none whitespace-nowrap">
-                  {el.title} ({Math.round(el.width)}%)
+                {/* Precision Floating Coordinates Badge */}
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-ink/95 backdrop-blur-md text-paper text-[10px] font-mono px-2 py-1 rounded-md shadow-lg pointer-events-none whitespace-nowrap flex items-center space-x-2 border border-borderCol/50">
+                  <span className="font-bold text-warm">{el.title}</span>
+                  <span className="text-paper/60">&bull;</span>
+                  <span>X:{Math.round(el.x)}% Y:{Math.round(el.y)}%</span>
+                  <span className="text-paper/60">&bull;</span>
+                  <span>W:{Math.round(el.width)}%</span>
+                  {el.rotation !== 0 && (
+                    <>
+                      <span className="text-paper/60">&bull;</span>
+                      <span className="text-amber-300">{el.rotation}°</span>
+                    </>
+                  )}
+                  {isOffCenter && (
+                    <span className="text-amber-400 font-bold ml-1">(!Edge)</span>
+                  )}
                 </div>
 
-                {/* Top Rotation Knob */}
+                {/* Top Rotation Knob with 44px Touch Hitbox */}
                 <div
                   onPointerDown={(e) => handlePointerDown(e, 'rotate', el)}
-                  className="absolute -top-6 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-warm text-ink flex items-center justify-center shadow-md cursor-grab active:cursor-grabbing hover:scale-110 transition-transform"
+                  className="absolute -top-9 left-1/2 -translate-x-1/2 w-11 h-11 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none z-30"
+                  title="Drag to rotate sticker"
                 >
-                  <RotateCw className="w-3 h-3" />
+                  <div className="w-6 h-6 rounded-full bg-warm text-ink flex items-center justify-center shadow-md pointer-events-none hover:scale-110 transition-transform">
+                    <RotateCw className="w-3.5 h-3.5" />
+                  </div>
                 </div>
 
-                {/* 4 Corner Scale Handles */}
+                {/* 4 Corner Scale Handles with 40px Touch Hitboxes */}
                 <div
                   onPointerDown={(e) => handlePointerDown(e, 'scale', el)}
-                  className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-paper border-2 border-warm rounded-sm cursor-se-resize shadow"
-                />
+                  className="absolute -bottom-5 -right-5 w-10 h-10 flex items-center justify-center cursor-se-resize touch-none z-30"
+                  title="Drag to resize"
+                >
+                  <div className="w-3.5 h-3.5 bg-paper border-2 border-warm rounded-sm shadow pointer-events-none" />
+                </div>
                 <div
                   onPointerDown={(e) => handlePointerDown(e, 'scale', el)}
-                  className="absolute -bottom-1.5 -left-1.5 w-3.5 h-3.5 bg-paper border-2 border-warm rounded-sm cursor-sw-resize shadow"
-                />
+                  className="absolute -bottom-5 -left-5 w-10 h-10 flex items-center justify-center cursor-sw-resize touch-none z-30"
+                  title="Drag to resize"
+                >
+                  <div className="w-3.5 h-3.5 bg-paper border-2 border-warm rounded-sm shadow pointer-events-none" />
+                </div>
                 <div
                   onPointerDown={(e) => handlePointerDown(e, 'scale', el)}
-                  className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-paper border-2 border-warm rounded-sm cursor-ne-resize shadow"
-                />
+                  className="absolute -top-5 -right-5 w-10 h-10 flex items-center justify-center cursor-ne-resize touch-none z-30"
+                  title="Drag to resize"
+                >
+                  <div className="w-3.5 h-3.5 bg-paper border-2 border-warm rounded-sm shadow pointer-events-none" />
+                </div>
                 <div
                   onPointerDown={(e) => handlePointerDown(e, 'scale', el)}
-                  className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-paper border-2 border-warm rounded-sm cursor-nw-resize shadow"
-                />
+                  className="absolute -top-5 -left-5 w-10 h-10 flex items-center justify-center cursor-nw-resize touch-none z-30"
+                  title="Drag to resize"
+                >
+                  <div className="w-3.5 h-3.5 bg-paper border-2 border-warm rounded-sm shadow pointer-events-none" />
+                </div>
+
+                {/* Quick Action Floating Bar for Touch & Mouse Precision */}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex items-center space-x-1 bg-ink/95 backdrop-blur-md px-2 py-1 rounded-lg border border-borderCol/60 shadow-xl z-40 whitespace-nowrap pointer-events-auto"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateElement(el.id, {
+                        rotation: (el.rotation + 90) % 360,
+                      })
+                    }
+                    className="p-1.5 text-paper hover:text-warm hover:bg-paper/10 rounded transition-colors"
+                    title="Rotate 90° clockwise"
+                  >
+                    <RotateCw className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateElement(el.id, { x: 50, y: 50 })}
+                    className="p-1.5 text-paper hover:text-warm hover:bg-paper/10 rounded transition-colors"
+                    title="Center on garment"
+                  >
+                    <Crosshair className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateElement(el.id, { zIndex: el.zIndex + 1 })}
+                    className="p-1.5 text-paper hover:text-warm hover:bg-paper/10 rounded transition-colors"
+                    title="Bring forward"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateElement(el.id, {
+                        zIndex: Math.max(1, el.zIndex - 1),
+                      })
+                    }
+                    className="p-1.5 text-paper hover:text-warm hover:bg-paper/10 rounded transition-colors"
+                    title="Send backward"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="w-px h-4 bg-paper/20 mx-0.5" />
+                  <button
+                    type="button"
+                    onClick={() => onDeleteElement(el.id)}
+                    className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded transition-colors"
+                    title="Delete layer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </>
             )}
           </div>

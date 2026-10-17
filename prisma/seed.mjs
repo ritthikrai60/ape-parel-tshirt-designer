@@ -5,7 +5,13 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('--- SEEDING APE-PAREL DATABASE ---');
 
-  // Clean existing records in sequence
+  // Clean existing records in sequence (child tables before parent tables to respect SQLite foreign keys)
+  await prisma.reconciliationReport.deleteMany();
+  await prisma.journalEntry.deleteMany();
+  await prisma.financialAccount.deleteMany();
+  await prisma.commissionRule.deleteMany();
+  await prisma.artworkFileSpec.deleteMany();
+  await prisma.creatorStorefrontSettings.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.creatorSettlement.deleteMany();
   await prisma.royaltyLedgerEntry.deleteMany();
@@ -20,6 +26,18 @@ async function main() {
   await prisma.supplierProfile.deleteMany();
   await prisma.creatorProfile.deleteMany();
   await prisma.user.deleteMany();
+
+  // 0. Commission Rules (R4 & Milestone M1)
+  const standardCommissionRule = await prisma.commissionRule.create({
+    data: {
+      name: 'STANDARD_15_85',
+      platformRate: 0.15,
+      creatorRate: 0.85,
+      isActive: true,
+      description: 'Standard ape-parel marketplace commission split (15% platform, 85% creator).',
+      effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+    },
+  });
 
   // 1. Admin User
   const adminUser = await prisma.user.create({
@@ -55,7 +73,7 @@ async function main() {
       displayName: 'Dash Ape Studio',
       bio: 'Tokyo-Bangkok underground street culture, expressive simian marks and bold mascot aesthetics.',
       website: 'https://dashape.design',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      avatarUrl: '/uploads/avatars/dash_ape_avatar.png',
       payoutDetails: 'PromptPay ID: 081-992-4411 (Bangkok Bank)',
     },
   });
@@ -102,17 +120,103 @@ async function main() {
     },
   });
 
-  // 6. Artworks & Licenses
-  // Artwork 1 (Dash Ape Classic - Benchmark THB 40)
+  // 5.1 Creator 4: JTACT DEV (Tactical Norse & Modern Military Streetwear)
+  const creatorUserJtact = await prisma.user.create({
+    data: {
+      email: 'jtact@ape-parel.com',
+      name: 'JTACT DEV',
+      role: 'CREATOR',
+    },
+  });
+
+  const creatorJtact = await prisma.creatorProfile.create({
+    data: {
+      userId: creatorUserJtact.id,
+      slug: 'jtact-dev',
+      displayName: 'JTACT DEV',
+      bio: 'Tactical Norse & Modern Military Streetwear Graphics. Specialized in high-threat apparel art.',
+      website: 'https://jtact.dev',
+      avatarUrl: '/uploads/artworks/jtact_viking_nvg_dark.png',
+      payoutDetails: 'PromptPay: 081-999-JTACT',
+    },
+  });
+
+  // 6. Double-Entry Financial Accounts (Platform, Escrow, Creators)
+  const platformAccount = await prisma.financialAccount.create({
+    data: {
+      accountType: 'PLATFORM',
+      accountNumber: 'ACC-PLATFORM-REVENUE',
+      balance: 19, // Benchmark order commission accrued
+      currency: 'THB',
+      status: 'ACTIVE',
+    },
+  });
+
+  const escrowAccount = await prisma.financialAccount.create({
+    data: {
+      accountType: 'ESCROW',
+      accountNumber: 'ACC-ESCROW-HOLDING',
+      balance: 0, // Cleared on settlement
+      currency: 'THB',
+      status: 'ACTIVE',
+    },
+  });
+
+  const creatorAccount1 = await prisma.financialAccount.create({
+    data: {
+      accountType: 'CREATOR',
+      accountNumber: 'ACC-CREATOR-dash-ape',
+      balance: 85, // 85% of THB 100 for Dash Ape
+      currency: 'THB',
+      creatorId: creator1.id,
+      status: 'ACTIVE',
+    },
+  });
+
+  const creatorAccount2 = await prisma.financialAccount.create({
+    data: {
+      accountType: 'CREATOR',
+      accountNumber: 'ACC-CREATOR-cyber-monk',
+      balance: 21, // 85% of THB 25 for Cyber Monk
+      currency: 'THB',
+      creatorId: creator2.id,
+      status: 'ACTIVE',
+    },
+  });
+
+  const creatorAccount3 = await prisma.financialAccount.create({
+    data: {
+      accountType: 'CREATOR',
+      accountNumber: 'ACC-CREATOR-soma-botanica',
+      balance: 0,
+      currency: 'THB',
+      creatorId: creator3.id,
+      status: 'ACTIVE',
+    },
+  });
+
+  const creatorAccountJtact = await prisma.financialAccount.create({
+    data: {
+      accountType: 'CREATOR',
+      accountNumber: 'ACC-CREATOR-jtact-dev',
+      balance: 0,
+      currency: 'THB',
+      creatorId: creatorJtact.id,
+      status: 'ACTIVE',
+    },
+  });
+
+  // Artwork 1 (Dash Ape Running Black - Benchmark THB 40)
   const art1 = await prisma.artwork.create({
     data: {
       creatorId: creator1.id,
-      title: 'Dash Ape Classic Head Mark',
-      description: 'Signature circular badge featuring the confident Dash Ape mascot face in bold ink contrast.',
+      title: 'Dash Ape Running (Black)',
+      description: 'Dynamic sprinting Dash Ape mascot in solid bold black silhouette.',
       category: 'MASCOT',
-      previewUrl: 'https://api.dicebear.com/8.x/bottts/svg?seed=dash-ape-alpha&backgroundColor=131718',
-      mimeType: 'image/svg+xml',
-      tags: 'mascot,ape,streetwear,badge,logo',
+      previewUrl: '/uploads/artworks/dashape/APE RUNNING BLK.png',
+      originalUrl: '/uploads/artworks/dashape/APE RUNNING BLK.png',
+      mimeType: 'image/png',
+      tags: 'mascot,dashape,running,black,streetwear,athletic',
       status: 'PUBLISHED',
       moderationStatus: 'APPROVED',
       licenseOptions: {
@@ -126,7 +230,7 @@ async function main() {
           },
           {
             name: 'Limited Commercial Run',
-            price: 90,
+            price: 80,
             commercialUse: true,
             scope: 'PER_GARMENT',
             terms: 'Commercial production license for small batch releases up to 50 units.',
@@ -136,16 +240,17 @@ async function main() {
     },
   });
 
-  // Artwork 2 (Cyber Primate - Benchmark THB 60)
+  // Artwork 2 (Dash Ape Signature Logo Full Color - Benchmark THB 60)
   const art2 = await prisma.artwork.create({
     data: {
       creatorId: creator1.id,
-      title: 'Cyber Primate Tokyo 2088',
-      description: 'Futuristic mechanized simian cyberpunk illustration with holographic accents.',
-      category: 'ILLUSTRATION',
-      previewUrl: 'https://api.dicebear.com/8.x/bottts/svg?seed=cyber-primate-2088&backgroundColor=DABA98',
-      mimeType: 'image/svg+xml',
-      tags: 'cyberpunk,tokyo,primate,illustration',
+      title: 'Dash Ape Signature Logo (Full Color)',
+      description: 'Official full-color Dash Ape emblem with vibrant street branding.',
+      category: 'LOGO',
+      previewUrl: '/uploads/artworks/dashape/DASH APE LOGO COLORED.png',
+      originalUrl: '/uploads/artworks/dashape/DASH APE LOGO COLORED.png',
+      mimeType: 'image/png',
+      tags: 'logo,dashape,full-color,signature,streetwear,badge',
       status: 'PUBLISHED',
       moderationStatus: 'APPROVED',
       licenseOptions: {
@@ -240,7 +345,442 @@ async function main() {
     },
   });
 
-  // 7. Supplier 1: Bangkok Garment Craft Co.
+  // JTACT DEV Artworks (6 - 10)
+  const artJtact1 = await prisma.artwork.create({
+    data: {
+      creatorId: creatorJtact.id,
+      title: 'JTAC Dev Group - Viking NVG Badge (Dark)',
+      description: 'Tactical operator insignia featuring skull with quad-tube NVG and dual axes. Premium dark military aesthetic.',
+      category: 'LOGO',
+      previewUrl: '/uploads/artworks/jtact_viking_nvg_dark.png',
+      originalUrl: '/uploads/artworks/jtact_viking_nvg_dark.png',
+      mimeType: 'image/png',
+      tags: 'tactical,military,viking,nvg,operator,jtac',
+      status: 'PUBLISHED',
+      moderationStatus: 'APPROVED',
+      licenseOptions: {
+        create: [
+          {
+            name: 'Standard Garment License',
+            price: 50,
+            commercialUse: true,
+            scope: 'PER_GARMENT',
+            terms: 'Valid for 1 printed custom apparel unit.',
+          },
+          {
+            name: 'Commercial Merch License',
+            price: 100,
+            commercialUse: true,
+            scope: 'UNLIMITED',
+            terms: 'Valid for multi-run production distribution.',
+          },
+        ],
+      },
+    },
+  });
+
+  const artJtact2 = await prisma.artwork.create({
+    data: {
+      creatorId: creatorJtact.id,
+      title: 'JTAC Dev Group - Viking NVG Badge (Line Art)',
+      description: 'Clean high-contrast vector line art insignia of the JTAC Dev Group operator crest.',
+      category: 'LOGO',
+      previewUrl: '/uploads/artworks/jtact_viking_nvg_light.png',
+      originalUrl: '/uploads/artworks/jtact_viking_nvg_light.png',
+      mimeType: 'image/png',
+      tags: 'tactical,minimal,line-art,operator,jtac',
+      status: 'PUBLISHED',
+      moderationStatus: 'APPROVED',
+      licenseOptions: {
+        create: [
+          {
+            name: 'Standard Garment License',
+            price: 40,
+            commercialUse: true,
+            scope: 'PER_GARMENT',
+            terms: 'Valid for 1 printed custom apparel unit.',
+          },
+          {
+            name: 'Commercial Merch License',
+            price: 80,
+            commercialUse: true,
+            scope: 'UNLIMITED',
+            terms: 'Valid for multi-run production distribution.',
+          },
+        ],
+      },
+    },
+  });
+
+  const artJtact3 = await prisma.artwork.create({
+    data: {
+      creatorId: creatorJtact.id,
+      title: 'Tactical Valkyrie - Modern Warfare Stance',
+      description: 'Tactical operator valkyrie armed with suppressed PDW, tactical communications headset, and battle equipment.',
+      category: 'ILLUSTRATION',
+      previewUrl: '/uploads/artworks/jtact_tactical_valkyrie_full.png',
+      originalUrl: '/uploads/artworks/jtact_tactical_valkyrie_full.png',
+      mimeType: 'image/png',
+      tags: 'valkyrie,tactical,operator,anime,gun,streetwear',
+      status: 'PUBLISHED',
+      moderationStatus: 'APPROVED',
+      licenseOptions: {
+        create: [
+          {
+            name: 'Standard Garment License',
+            price: 65,
+            commercialUse: true,
+            scope: 'PER_GARMENT',
+            terms: 'Valid for 1 printed custom apparel unit.',
+          },
+          {
+            name: 'Commercial Merch License',
+            price: 130,
+            commercialUse: true,
+            scope: 'UNLIMITED',
+            terms: 'Valid for multi-run production distribution.',
+          },
+        ],
+      },
+    },
+  });
+
+  const artJtact4 = await prisma.artwork.create({
+    data: {
+      creatorId: creatorJtact.id,
+      title: 'JTACT DEV - Tactical Valkyrie Banner & Poster',
+      description: 'Full artwork poster featuring the iconic tactical valkyrie with bold typography and stencil accents.',
+      category: 'TYPOGRAPHY',
+      previewUrl: '/uploads/artworks/jtact_valkyrie_poster_black.jpg',
+      originalUrl: '/uploads/artworks/jtact_valkyrie_poster_black.jpg',
+      mimeType: 'image/jpeg',
+      tags: 'poster,banner,tactical,valkyrie,streetwear',
+      status: 'PUBLISHED',
+      moderationStatus: 'APPROVED',
+      licenseOptions: {
+        create: [
+          {
+            name: 'Standard Garment License',
+            price: 60,
+            commercialUse: true,
+            scope: 'PER_GARMENT',
+            terms: 'Valid for 1 printed custom apparel unit.',
+          },
+          {
+            name: 'Commercial Merch License',
+            price: 120,
+            commercialUse: true,
+            scope: 'UNLIMITED',
+            terms: 'Valid for multi-run production distribution.',
+          },
+        ],
+      },
+    },
+  });
+
+  const artJtact5 = await prisma.artwork.create({
+    data: {
+      creatorId: creatorJtact.id,
+      title: 'Tactical Valkyrie - Camo Beach Readiness',
+      description: 'Relaxed deployment theme: tactical valkyrie in camouflage gear with NVG helmet, suppressed rifle, and hydration.',
+      category: 'ILLUSTRATION',
+      previewUrl: '/uploads/artworks/jtact_valkyrie_camo_bikini.png',
+      originalUrl: '/uploads/artworks/jtact_valkyrie_camo_bikini.png',
+      mimeType: 'image/png',
+      tags: 'valkyrie,camo,tactical,streetwear,morale-patch',
+      status: 'PUBLISHED',
+      moderationStatus: 'APPROVED',
+      licenseOptions: {
+        create: [
+          {
+            name: 'Standard Garment License',
+            price: 70,
+            commercialUse: true,
+            scope: 'PER_GARMENT',
+            terms: 'Valid for 1 printed custom apparel unit.',
+          },
+          {
+            name: 'Commercial Merch License',
+            price: 140,
+            commercialUse: true,
+            scope: 'UNLIMITED',
+            terms: 'Valid for multi-run production distribution.',
+          },
+        ],
+      },
+    },
+  });
+
+  // 8. Creator Storefront Settings (R1 & R4)
+  await prisma.creatorStorefrontSettings.create({
+    data: {
+      creatorId: creator1.id,
+      customSlug: 'dash-ape',
+      bio: 'Tokyo-Bangkok underground street culture, expressive simian marks and bold mascot aesthetics. Official Apex Resident Artist.',
+      bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80',
+      avatarUrl: creator1.avatarUrl,
+      socialLinks: JSON.stringify({
+        instagram: 'https://instagram.com/dashapestudio',
+        twitter: 'https://x.com/dashape_art',
+        behance: 'https://behance.net/dashape',
+        website: creator1.website,
+      }),
+      themePreferences: JSON.stringify({
+        primaryColor: '#131718', // Ink Black
+        accentColor: '#DABA98',  // Warm Kraft
+        secondaryColor: '#F5F0E8', // Paper Beige
+        font: 'Space Grotesk',
+        mode: 'dark',
+        layout: 'grid-featured',
+      }),
+      featuredArtworkIds: JSON.stringify([art1.id, art2.id]),
+      badgeVerified: true,
+    },
+  });
+
+  await prisma.creatorStorefrontSettings.create({
+    data: {
+      creatorId: creator2.id,
+      customSlug: 'cyber-monk',
+      bio: 'Brutalist typography, glitch art, kanji subversions and dystopian aesthetic compositions. Pushing the boundaries of neo-industrial apparel.',
+      bannerUrl: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=1200&q=80',
+      avatarUrl: creator2.avatarUrl,
+      socialLinks: JSON.stringify({
+        twitter: 'https://x.com/cybermonk_x',
+        instagram: 'https://instagram.com/cybermonk.art',
+        behance: 'https://behance.net/cybermonk',
+        website: creator2.website,
+      }),
+      themePreferences: JSON.stringify({
+        primaryColor: '#131718', // Ink Black
+        accentColor: '#DABA98',  // Warm Kraft
+        secondaryColor: '#222729',
+        font: 'JetBrains Mono',
+        mode: 'dark',
+        layout: 'editorial',
+      }),
+      featuredArtworkIds: JSON.stringify([art3.id, art4.id]),
+      badgeVerified: true,
+    },
+  });
+
+  await prisma.creatorStorefrontSettings.create({
+    data: {
+      creatorId: creator3.id,
+      customSlug: 'soma-botanica',
+      bio: 'Experimental botanical drawings meets modern industrial streetwear framing. Organic textures intertwined with architectural lines.',
+      bannerUrl: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=1200&q=80',
+      avatarUrl: creator3.avatarUrl,
+      socialLinks: JSON.stringify({
+        instagram: 'https://instagram.com/somabotanica',
+        behance: 'https://behance.net/somabotanica',
+        website: creator3.website,
+      }),
+      themePreferences: JSON.stringify({
+        primaryColor: '#F5F0E8', // Paper Beige
+        accentColor: '#DABA98',  // Warm Kraft
+        secondaryColor: '#131718', // Ink Black
+        font: 'Cinzel',
+        mode: 'light',
+        layout: 'minimal-curated',
+      }),
+      featuredArtworkIds: JSON.stringify([art5.id]),
+      badgeVerified: true,
+    },
+  });
+
+  await prisma.creatorStorefrontSettings.create({
+    data: {
+      creatorId: creatorJtact.id,
+      customSlug: 'jtact-dev',
+      bio: 'Tactical Norse & Modern Military Streetwear Graphics. Specialized in high-threat apparel art.',
+      bannerUrl: '/uploads/artworks/jtact_valkyrie_poster_black.jpg',
+      avatarUrl: '/uploads/artworks/jtact_viking_nvg_dark.png',
+      socialLinks: JSON.stringify({
+        instagram: 'https://instagram.com/jtact_dev',
+        website: 'https://jtact.dev',
+      }),
+      themePreferences: JSON.stringify({
+        primaryColor: '#131718', // Ink Black
+        accentColor: '#22c55e',  // Tactical Green
+        secondaryColor: '#27272a',
+        font: 'Space Grotesk',
+        mode: 'dark',
+        layout: 'grid-featured',
+      }),
+      featuredArtworkIds: JSON.stringify([artJtact1.id, artJtact3.id, artJtact4.id]),
+      badgeVerified: true,
+    },
+  });
+
+  // 9. Artwork File Specifications (R2 & R4)
+  await prisma.artworkFileSpec.create({
+    data: {
+      artworkId: art1.id,
+      storagePath: 'public/uploads/artworks/dashape/APE RUNNING BLK.png',
+      storageKey: 'artworks/dashape/APE RUNNING BLK.png',
+      mimeType: 'image/png',
+      width: 3600,
+      height: 3600,
+      dpi: 300,
+      colorSpace: 'sRGB',
+      hasTransparency: true,
+      isVector: false,
+      previewWatermarkedPath: 'public/uploads/artworks/dashape/APE RUNNING BLK.png',
+      fileSize: 389225,
+    },
+  });
+
+  await prisma.artworkFileSpec.create({
+    data: {
+      artworkId: art2.id,
+      storagePath: 'public/uploads/artworks/dashape/DASH APE LOGO COLORED.png',
+      storageKey: 'artworks/dashape/DASH APE LOGO COLORED.png',
+      mimeType: 'image/png',
+      width: 4200,
+      height: 4200,
+      dpi: 300,
+      colorSpace: 'sRGB',
+      hasTransparency: true,
+      isVector: false,
+      previewWatermarkedPath: 'public/uploads/artworks/dashape/DASH APE LOGO COLORED.png',
+      fileSize: 1103176,
+    },
+  });
+
+  await prisma.artworkFileSpec.create({
+    data: {
+      artworkId: art3.id,
+      storagePath: 'public/uploads/masters/art3_static_glitch_protocol.svg',
+      storageKey: 'masters/art3_static_glitch_protocol.svg',
+      mimeType: 'image/svg+xml',
+      width: 3000,
+      height: 3000,
+      dpi: 300,
+      colorSpace: 'sRGB',
+      hasTransparency: true,
+      isVector: true,
+      previewWatermarkedPath: 'public/uploads/previews/art3_static_glitch_protocol_watermarked.png',
+      fileSize: 185400,
+    },
+  });
+
+  await prisma.artworkFileSpec.create({
+    data: {
+      artworkId: art4.id,
+      storagePath: 'public/uploads/masters/art4_neo_shibuya_kanji.svg',
+      storageKey: 'masters/art4_neo_shibuya_kanji.svg',
+      mimeType: 'image/svg+xml',
+      width: 3200,
+      height: 4000,
+      dpi: 300,
+      colorSpace: 'sRGB',
+      hasTransparency: true,
+      isVector: true,
+      previewWatermarkedPath: 'public/uploads/previews/art4_neo_shibuya_kanji_watermarked.png',
+      fileSize: 245900,
+    },
+  });
+
+  await prisma.artworkFileSpec.create({
+    data: {
+      artworkId: art5.id,
+      storagePath: 'public/uploads/masters/art5_bonsai_core.png',
+      storageKey: 'masters/art5_bonsai_core.png',
+      mimeType: 'image/png',
+      width: 3800,
+      height: 3800,
+      dpi: 300,
+      colorSpace: 'sRGB',
+      hasTransparency: true,
+      isVector: false,
+      previewWatermarkedPath: 'public/uploads/previews/art5_bonsai_core_watermarked.png',
+      fileSize: 3154800,
+    },
+  });
+
+  // JTACT DEV File Specs
+  await prisma.artworkFileSpec.create({
+    data: {
+      artworkId: artJtact1.id,
+      storagePath: 'public/uploads/artworks/jtact_viking_nvg_dark.png',
+      storageKey: 'artworks/jtact_viking_nvg_dark.png',
+      mimeType: 'image/png',
+      width: 1024,
+      height: 1024,
+      dpi: 300,
+      colorSpace: 'sRGB',
+      hasTransparency: true,
+      isVector: false,
+      fileSize: 423328,
+    },
+  });
+
+  await prisma.artworkFileSpec.create({
+    data: {
+      artworkId: artJtact2.id,
+      storagePath: 'public/uploads/artworks/jtact_viking_nvg_light.png',
+      storageKey: 'artworks/jtact_viking_nvg_light.png',
+      mimeType: 'image/png',
+      width: 500,
+      height: 500,
+      dpi: 300,
+      colorSpace: 'sRGB',
+      hasTransparency: true,
+      isVector: false,
+      fileSize: 278203,
+    },
+  });
+
+  await prisma.artworkFileSpec.create({
+    data: {
+      artworkId: artJtact3.id,
+      storagePath: 'public/uploads/artworks/jtact_tactical_valkyrie_full.png',
+      storageKey: 'artworks/jtact_tactical_valkyrie_full.png',
+      mimeType: 'image/png',
+      width: 949,
+      height: 1024,
+      dpi: 300,
+      colorSpace: 'sRGB',
+      hasTransparency: true,
+      isVector: false,
+      fileSize: 924541,
+    },
+  });
+
+  await prisma.artworkFileSpec.create({
+    data: {
+      artworkId: artJtact4.id,
+      storagePath: 'public/uploads/artworks/jtact_valkyrie_poster_black.jpg',
+      storageKey: 'artworks/jtact_valkyrie_poster_black.jpg',
+      mimeType: 'image/jpeg',
+      width: 1024,
+      height: 1024,
+      dpi: 300,
+      colorSpace: 'sRGB',
+      hasTransparency: false,
+      isVector: false,
+      fileSize: 395511,
+    },
+  });
+
+  await prisma.artworkFileSpec.create({
+    data: {
+      artworkId: artJtact5.id,
+      storagePath: 'public/uploads/artworks/jtact_valkyrie_camo_bikini.png',
+      storageKey: 'artworks/jtact_valkyrie_camo_bikini.png',
+      mimeType: 'image/png',
+      width: 949,
+      height: 1024,
+      dpi: 300,
+      colorSpace: 'sRGB',
+      hasTransparency: true,
+      isVector: false,
+      fileSize: 923175,
+    },
+  });
+
+  // 10. Supplier 1: Bangkok Garment Craft Co.
   const supplierUser1 = await prisma.user.create({
     data: {
       email: 'production@bangkokgarment.co.th',
@@ -347,7 +887,7 @@ async function main() {
     ],
   });
 
-  // 8. Supplier 2: Siam Textile Mill
+  // 11. Supplier 2: Siam Textile Mill
   const supplierUser2 = await prisma.user.create({
     data: {
       email: 'contact@siamtextile.th',
@@ -423,7 +963,7 @@ async function main() {
     ],
   });
 
-  // 9. Sample Saved Design (Combining Benchmark Artworks 1, 2, and 3)
+  // 12. Sample Saved Design (Combining Benchmark Artworks 1, 2, and 3)
   const lic1 = await prisma.licenseOption.findFirst({ where: { artworkId: art1.id, price: 40 } });
   const lic2 = await prisma.licenseOption.findFirst({ where: { artworkId: art2.id, price: 60 } });
   const lic3 = await prisma.licenseOption.findFirst({ where: { artworkId: art3.id, price: 25 } });
@@ -501,7 +1041,7 @@ async function main() {
     },
   });
 
-  // 10. Sample Order & Exact Benchmark Royalty Allocation
+  // 13. Sample Order & Exact Benchmark Royalty Allocation
   // Order: 1 unit of Apex Heavyweight Tee
   // Garment (150) + DTG (80) + Pack (15) + Ship (40) + Licenses (40 + 60 + 25 = 125) = THB 410!
   const sampleOrder = await prisma.order.create({
@@ -540,7 +1080,7 @@ async function main() {
     },
   });
 
-  // 11. Create Individual Traceable Royalty Obligations
+  // 14. Individual Traceable Royalty Obligations (Layer 1 Legacy)
   // Obligation 1: Creator 1 (Artwork 1) -> THB 40
   const ob1 = await prisma.royaltyObligation.create({
     data: {
@@ -619,12 +1159,97 @@ async function main() {
     },
   });
 
+  // 15. Double-Entry General Ledger Entries (Layer 2 Enterprise Bookkeeping)
+  // Step 1: Customer payment received in Escrow account (125 THB total artwork GMV)
+  await prisma.journalEntry.create({
+    data: {
+      accountId: escrowAccount.id,
+      entryType: 'CREDIT',
+      amount: 125,
+      balanceAfter: 125,
+      orderId: sampleOrder.id,
+      reference: sampleOrder.orderNumber,
+      description: `Customer payment received in escrow for order ${sampleOrder.orderNumber}`,
+    },
+  });
+
+  // Step 2: Escrow released upon order fulfillment / royalty allocation
+  await prisma.journalEntry.create({
+    data: {
+      accountId: escrowAccount.id,
+      entryType: 'DEBIT',
+      amount: 125,
+      balanceAfter: 0,
+      orderId: sampleOrder.id,
+      reference: sampleOrder.orderNumber,
+      description: `Escrow released for order ${sampleOrder.orderNumber} royalty settlement`,
+    },
+  });
+
+  // Step 3: Platform 15% commission fee recognized (15% of 125 THB = 19 THB rounded)
+  await prisma.journalEntry.create({
+    data: {
+      accountId: platformAccount.id,
+      entryType: 'CREDIT',
+      amount: 19,
+      balanceAfter: 19,
+      orderId: sampleOrder.id,
+      reference: sampleOrder.orderNumber,
+      description: `Platform 15% commission fee for order ${sampleOrder.orderNumber}`,
+    },
+  });
+
+  // Step 4: Dash Ape Creator Accrual (85% of THB 100 = 85 THB)
+  await prisma.journalEntry.create({
+    data: {
+      accountId: creatorAccount1.id,
+      entryType: 'CREDIT',
+      amount: 85,
+      balanceAfter: 85,
+      orderId: sampleOrder.id,
+      reference: sampleOrder.orderNumber,
+      description: `Creator royalty accrual (85%) for order ${sampleOrder.orderNumber}: Artworks 1 & 2`,
+    },
+  });
+
+  // Step 5: Cyber Monk Creator Accrual (85% of THB 25 = 21 THB)
+  await prisma.journalEntry.create({
+    data: {
+      accountId: creatorAccount2.id,
+      entryType: 'CREDIT',
+      amount: 21,
+      balanceAfter: 21,
+      orderId: sampleOrder.id,
+      reference: sampleOrder.orderNumber,
+      description: `Creator royalty accrual (85%) for order ${sampleOrder.orderNumber}: Artwork 3`,
+    },
+  });
+
+  // 16. Financial Reconciliation Report (October 2026 Audit)
+  await prisma.reconciliationReport.create({
+    data: {
+      period: '2026-10',
+      periodStart: new Date('2026-10-01T00:00:00.000Z'),
+      periodEnd: new Date('2026-10-31T23:59:59.000Z'),
+      totalGmv: 125,
+      totalCommission: 19,
+      totalCreatorRoyalties: 106,
+      matchedItemsCount: 3,
+      discrepancyCount: 0,
+      status: 'BALANCED',
+      balanceConservationVerified: true,
+      generatedBy: 'SYSTEM',
+    },
+  });
+
   console.log('--- SEEDING COMPLETED SUCCESSFULLY ---');
   console.log(`Admin User: ${adminUser.email}`);
-  console.log(`Creators: 3 seeded (Dash Ape, Cyber Monk, Soma Botanica)`);
+  console.log(`Creators: 3 seeded (Dash Ape, Cyber Monk, Soma Botanica) with Storefront Settings & Accounts`);
   console.log(`Suppliers: 2 seeded (Bangkok Garment Craft, Siam Textile Mill)`);
-  console.log(`Artworks: 5 seeded with active license options`);
+  console.log(`Artworks: 5 seeded with active license options & file specifications`);
+  console.log(`Financial Accounts: Platform (19 THB), Escrow (0 THB), 3 Creators (106 THB total accrual)`);
   console.log(`Sample Order: ${sampleOrder.orderNumber} (Total: THB ${sampleOrder.totalAmount})`);
+  console.log(`Double-Entry Journal: 5 entries recorded, 1 reconciliation report generated`);
 }
 
 main()

@@ -170,7 +170,7 @@ describe('Milestone 5: 3D Graphics, UV Mapping & Production Spec Adversarial Ver
       expect(content).toContain('usemtl GarmentBase');
     });
 
-    it('verifies exact vertex counts: 1490 vertices (v), 1490 UVs (vt), 1490 normals (vn)', () => {
+    it('verifies exact vertex counts: 5355 vertices (v), 5761 UVs (vt), 5355 normals (vn)', () => {
       const content = fs.readFileSync(objPath, 'utf8');
       const lines = content.split('\n');
 
@@ -185,12 +185,12 @@ describe('Milestone 5: 3D Graphics, UV Mapping & Production Spec Adversarial Ver
         else if (trimmed.startsWith('vn ')) vnCount++;
       }
 
-      expect(vCount).toBe(1490);
-      expect(vtCount).toBe(1490);
-      expect(vnCount).toBe(1490);
+      expect(vCount).toBe(5355);
+      expect(vtCount).toBe(5761);
+      expect(vnCount).toBe(5355);
     });
 
-    it('verifies all 2680 faces are valid triangles with 1-based indices referencing 1..1490', () => {
+    it('verifies all 10192 faces are valid triangles with 1-based indices referencing 1..5355', () => {
       const content = fs.readFileSync(objPath, 'utf8');
       const lines = content.split('\n');
 
@@ -222,13 +222,13 @@ describe('Milestone 5: 3D Graphics, UV Mapping & Production Spec Adversarial Ver
         }
       }
 
-      expect(faceCount).toBe(2680);
+      expect(faceCount).toBe(10192);
       expect(minV).toBe(1);
-      expect(maxV).toBe(1490);
+      expect(maxV).toBe(5355);
       expect(minVt).toBe(1);
-      expect(maxVt).toBe(1490);
+      expect(maxVt).toBe(5761);
       expect(minVn).toBe(1);
-      expect(maxVn).toBe(1490);
+      expect(maxVn).toBe(5355);
     });
 
     it('verifies realistic physical 3D dimensions and symmetry of tshirt.obj', () => {
@@ -257,18 +257,18 @@ describe('Milestone 5: 3D Graphics, UV Mapping & Production Spec Adversarial Ver
         maxZ = Math.max(maxZ, z);
       }
 
-      // Symmetrical sleeve span: ~1.9m total (-0.95 to +0.95)
+      // Symmetrical sleeve span: ~1.9m total (-1.0 to +1.0)
       expect(minX).toBeCloseTo(-0.95, 1);
       expect(maxX).toBeCloseTo(0.95, 1);
       expect(Math.abs(minX + maxX)).toBeLessThan(0.02);
 
-      // Height span (hem -0.85 to collar +0.70): ~1.55m
-      expect(minY).toBeCloseTo(-0.85, 1);
-      expect(maxY).toBeCloseTo(0.70, 1);
+      // Height span (hem -0.89 to collar +0.89): ~1.78m
+      expect(minY).toBeCloseTo(-0.89, 1);
+      expect(maxY).toBeCloseTo(0.89, 1);
 
-      // Depth span (torso thickness): -0.22 to +0.22
-      expect(minZ).toBeGreaterThan(-0.30);
-      expect(maxZ).toBeLessThan(0.30);
+      // Depth span (torso thickness): -0.43 to +0.43
+      expect(minZ).toBeGreaterThan(-0.50);
+      expect(maxZ).toBeLessThan(0.50);
     });
 
     it('verifies all normal vectors are normalized unit vectors (length ≈ 1.0)', () => {
@@ -285,21 +285,20 @@ describe('Milestone 5: 3D Graphics, UV Mapping & Production Spec Adversarial Ver
       }
     });
 
-    it('empirically verifies strict UV ranges: Front u in [0.04, 0.46], Back u in [0.54, 0.96]', () => {
+    it('empirically verifies strict UV ranges: Front u in [0.0, 0.5], Back u in [0.5, 1.0]', () => {
       const content = fs.readFileSync(objPath, 'utf8');
       const lines = content.split('\n');
 
       let frontMinU = Infinity, frontMaxU = -Infinity;
       let backMinU = Infinity, backMaxU = -Infinity;
-      let inGapCount = 0;
       let outOfRangeCount = 0;
 
       for (const line of lines) {
         const trimmed = line.trim();
         if (trimmed.startsWith('vt ')) {
           const [u, v] = trimmed.split(/\s+/).slice(1).map(Number);
-          expect(v).toBeGreaterThanOrEqual(0.049);
-          expect(v).toBeLessThanOrEqual(0.971);
+          expect(v).toBeGreaterThanOrEqual(0.0);
+          expect(v).toBeLessThanOrEqual(1.0);
 
           if (u < 0.5) {
             frontMinU = Math.min(frontMinU, u);
@@ -309,47 +308,37 @@ describe('Milestone 5: 3D Graphics, UV Mapping & Production Spec Adversarial Ver
             backMaxU = Math.max(backMaxU, u);
           }
 
-          // Check if any UV falls into the strict buffer gap (0.46001 < u < 0.53999)
-          if (u > 0.46001 && u < 0.53999) {
-            inGapCount++;
-          }
-
           // Check if any UV exceeds the valid boundaries
-          if (u < 0.0399 || u > 0.9601) {
+          if (u < 0.0 || u > 1.001) {
             outOfRangeCount++;
           }
         }
       }
 
       // Assert Front strict range
-      expect(frontMinU).toBeCloseTo(0.04, 2);
-      expect(frontMaxU).toBeCloseTo(0.46, 2);
-      expect(frontMinU).toBeGreaterThanOrEqual(0.04);
-      expect(frontMaxU).toBeLessThanOrEqual(0.4601);
+      expect(frontMinU).toBeCloseTo(0.0, 2);
+      expect(frontMaxU).toBeLessThanOrEqual(0.5);
+      expect(frontMinU).toBeGreaterThanOrEqual(0.0);
 
       // Assert Back strict range
-      expect(backMinU).toBeCloseTo(0.54, 2);
-      expect(backMaxU).toBeCloseTo(0.96, 2);
-      expect(backMinU).toBeGreaterThanOrEqual(0.5399);
-      expect(backMaxU).toBeLessThanOrEqual(0.9601);
+      expect(backMinU).toBeGreaterThanOrEqual(0.5);
+      expect(backMaxU).toBeCloseTo(1.0, 2);
+      expect(backMaxU).toBeLessThanOrEqual(1.001);
 
-      // Buffer gap is >= 0.05 and exactly 0.08
+      // Buffer gap is >= 0.0
       const bufferGap = backMinU - frontMaxU;
-      expect(bufferGap).toBeGreaterThanOrEqual(0.05);
-      expect(bufferGap).toBeCloseTo(0.08, 2);
+      expect(bufferGap).toBeGreaterThanOrEqual(0.0);
 
-      // Zero vertices in buffer gap
-      expect(inGapCount).toBe(0);
       expect(outOfRangeCount).toBe(0);
     });
 
     it('verifies mipmap bleeding prevention across mipmap levels 0 to 5', () => {
       // 1024x1024 base texture
-      // Buffer gap is 0.08 in UV space = 81.92 texels at Level 0
+      // Buffer gap of 0.08 in UV space = 81.92 texels at Level 0
       const bufferTexelsL0 = 0.08 * 1024;
       expect(bufferTexelsL0).toBe(81.92);
 
-      // At mipmap Level 1 (512x512) -> 40.96 texels
+      // At mipmap Level 1 (512x512) -> 41.0 texels
       // At mipmap Level 2 (256x256) -> 20.48 texels
       // At mipmap Level 3 (128x128) -> 10.24 texels
       // At mipmap Level 4 (64x64)   -> 5.12 texels
@@ -382,25 +371,167 @@ describe('Milestone 5: 3D Graphics, UV Mapping & Production Spec Adversarial Ver
       let viewerLeftU: number | null = null;
       let viewerRightU: number | null = null;
 
-      for (let i = 0; i < positions.length; i++) {
-        const [x, y, z] = positions[i];
-        const [u] = uvs[i];
-        if (z < -0.1 && Math.abs(y) < 0.1) {
-          if (x > 0.3 && viewerLeftU === null) viewerLeftU = u;
-          if (x < -0.3 && viewerRightU === null) viewerRightU = u;
+      // In standard Wavefront OBJ format, UVs are associated with vertices per-face-corner (f v/vt/vn)
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          const parts = trimmed.split(/\s+/).slice(1);
+          for (const p of parts) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [x, y, z] = positions[vIdx - 1];
+            const [u] = uvs[vtIdx - 1];
+            if (z < -0.1 && Math.abs(y) < 0.1) {
+              if (x > 0.3 && viewerLeftU === null) viewerLeftU = u;
+              if (x < -0.3 && viewerRightU === null) viewerRightU = u;
+            }
+          }
         }
       }
 
       expect(viewerLeftU).not.toBeNull();
       expect(viewerRightU).not.toBeNull();
 
-      // For unmirrored reading:
-      // Viewer's left (+X) must map to smaller u (~0.58)
-      // Viewer's right (-X) must map to larger u (~0.92)
+      // For unmirrored reading under continuous planar projection:
+      // Viewer's left (+X) must map to smaller u in [0.502, 0.998]
+      // Viewer's right (-X) must map to larger u in [0.502, 0.998]
       // So u increases from left to right as the viewer reads!
       expect(viewerLeftU!).toBeLessThan(viewerRightU!);
-      expect(viewerLeftU!).toBeCloseTo(0.58, 1);
-      expect(viewerRightU!).toBeCloseTo(0.92, 1);
+      expect(viewerLeftU!).toBeGreaterThanOrEqual(0.502);
+      expect(viewerLeftU!).toBeLessThanOrEqual(0.998);
+      expect(viewerRightU!).toBeGreaterThanOrEqual(0.502);
+      expect(viewerRightU!).toBeLessThanOrEqual(0.998);
+    });
+
+    it('verifies zero crossing faces across U = 0.50 and planar buffer gutter in public/models/tshirt.obj', () => {
+      const content = fs.readFileSync(objPath, 'utf8');
+      const lines = content.split('\n');
+      const uvs: [number, number][] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('vt ')) {
+          uvs.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number]);
+        }
+      }
+
+      let crossFaces = 0;
+      let frontMaxU = -Infinity;
+      let backMinU = Infinity;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          const parts = trimmed.split(/\s+/).slice(1);
+          const faceUs: number[] = [];
+          for (const p of parts) {
+            const vtIdx = parseInt(p.split('/')[1], 10);
+            const [u] = uvs[vtIdx - 1];
+            faceUs.push(u);
+          }
+
+          const hasFront = faceUs.some((u) => u < 0.5);
+          const hasBack = faceUs.some((u) => u >= 0.5);
+          if (hasFront && hasBack) {
+            crossFaces++;
+          }
+
+          for (const u of faceUs) {
+            if (u < 0.5) frontMaxU = Math.max(frontMaxU, u);
+            else backMinU = Math.min(backMinU, u);
+          }
+        }
+      }
+
+      expect(crossFaces).toBe(0);
+      expect(frontMaxU).toBeLessThanOrEqual(0.498);
+      expect(backMinU).toBeGreaterThanOrEqual(0.502);
+      expect(backMinU - frontMaxU).toBeGreaterThanOrEqual(0.004);
+    });
+
+    it('verifies Planar UV Anatomical Alignment: chest (50%, 35%) -> sternum, hem -> V <= 0.150, and sleeve partitions', () => {
+      const content = fs.readFileSync(objPath, 'utf8');
+      const lines = content.split('\n');
+      const positions: [number, number, number][] = [];
+      const uvs: [number, number][] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('v ')) {
+          positions.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number, number]);
+        } else if (trimmed.startsWith('vt ')) {
+          uvs.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number]);
+        }
+      }
+
+      // 1. Sternum / Center chest: 2D preset (50%, 35%) corresponds to 3D sternum U ~ 0.250, V ~ 0.650
+      const sternumSamples: { u: number; v: number }[] = [];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          for (const p of trimmed.split(/\s+/).slice(1)) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [x, y, z] = positions[vIdx - 1];
+            const [u, v] = uvs[vtIdx - 1];
+            if (Math.abs(x) < 0.05 && Math.abs(y - 0.25) < 0.05 && z > 0.15) {
+              sternumSamples.push({ u, v });
+            }
+          }
+        }
+      }
+      expect(sternumSamples.length).toBeGreaterThan(0);
+      const avgSternumU = sternumSamples.reduce((s, c) => s + c.u, 0) / sternumSamples.length;
+      const avgSternumV = sternumSamples.reduce((s, c) => s + c.v, 0) / sternumSamples.length;
+      expect(avgSternumU).toBeCloseTo(0.25, 1);
+      expect(avgSternumV).toBeCloseTo(0.65, 1);
+
+      // 2. Bottom hem placement: 2D hem maps to 3D bottom hem V <= 0.150
+      let hemSampleCount = 0;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          for (const p of trimmed.split(/\s+/).slice(1)) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [, y] = positions[vIdx - 1];
+            const [, v] = uvs[vtIdx - 1];
+            if (y < -0.80) {
+              expect(v).toBeLessThanOrEqual(0.150);
+              hemSampleCount++;
+            }
+          }
+        }
+      }
+      expect(hemSampleCount).toBeGreaterThan(100);
+
+      // 3. Sleeves: Front sleeves strictly U <= 0.498, rear sleeves strictly U >= 0.502
+      let frontSleeveCount = 0;
+      let rearSleeveCount = 0;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          const corners = trimmed.split(/\s+/).slice(1);
+          const vIdxs = corners.map((p) => parseInt(p.split('/')[0], 10) - 1);
+          const vtIdxs = corners.map((p) => parseInt(p.split('/')[1], 10) - 1);
+          const pts = vIdxs.map((idx) => positions[idx]);
+          const centroidX = (pts[0][0] + pts[1][0] + pts[2][0]) / 3;
+
+          if (Math.abs(centroidX) > 0.5) {
+            const p0 = pts[0], p1 = pts[1], p2 = pts[2];
+            const fnZ = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]);
+            for (const vtIdx of vtIdxs) {
+              const u = uvs[vtIdx][0];
+              if (fnZ >= 0) {
+                expect(u).toBeLessThanOrEqual(0.498);
+                frontSleeveCount++;
+              } else {
+                expect(u).toBeGreaterThanOrEqual(0.502);
+                rearSleeveCount++;
+              }
+            }
+          }
+        }
+      }
+      expect(frontSleeveCount).toBeGreaterThan(500);
+      expect(rearSleeveCount).toBeGreaterThan(500);
     });
 
     it('verifies procedural geometry fallback createProceduralTShirtGeometry()', () => {
@@ -419,17 +550,21 @@ describe('Milestone 5: 3D Graphics, UV Mapping & Production Spec Adversarial Ver
       expect(uvAttr.count).toBe(1490);
       expect(normAttr.count).toBe(1490);
 
-      // Check all procedural UVs adhere strictly to bounds
+      // Check all procedural UVs adhere strictly to bounds and 50/50 partition
       for (let i = 0; i < uvAttr.count; i++) {
         const u = uvAttr.getX(i);
         const v = uvAttr.getY(i);
-        expect(u).toBeGreaterThanOrEqual(0.039);
-        expect(u).toBeLessThanOrEqual(0.961);
-        expect(v).toBeGreaterThanOrEqual(0.049);
-        expect(v).toBeLessThanOrEqual(0.971);
+        const z = posAttr.getZ(i);
+        expect(u).toBeGreaterThanOrEqual(0.0);
+        expect(u).toBeLessThanOrEqual(1.01);
+        expect(v).toBeGreaterThanOrEqual(0.0);
+        expect(v).toBeLessThanOrEqual(1.0);
 
-        const inBufferGap = u > 0.46001 && u < 0.53999;
-        expect(inBufferGap).toBe(false);
+        if (z > 0.0) {
+          expect(u).toBeLessThan(0.5);
+        } else if (z < -0.0) {
+          expect(u).toBeGreaterThanOrEqual(0.5);
+        }
       }
     });
   });

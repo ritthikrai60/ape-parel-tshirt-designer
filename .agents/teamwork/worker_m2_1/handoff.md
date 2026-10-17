@@ -1,183 +1,138 @@
-# Handoff Report — Milestone 2: Royalty Ledger & Supplier Production Specs
+# Milestone 2 Handoff Report: Test Alignment & 3D Studio Integration
 
-**Author:** `worker_m2_1` (Royalty Ledger & Supplier Specs Builder)  
-**Date:** 2026-10-10  
-**Target Milestone:** M2 (Royalty Ledger & Supplier Specs)  
-**Working Directory:** `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\worker_m2_1`  
-**Parent Agent:** `orchestrator` (`ebc38aff-81cb-457f-bd27-e38a9be40d41`)
+**Worker**: Worker 1 (`worker_m2_1`)  
+**Role**: Implementer / QA / Specialist  
+**Working Directory**: `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\worker_m2_1`  
+**Target Milestone**: Milestone 2 — Test Alignment & 3D Studio Integration Verification  
+**Date**: 2026-10-10  
+**Verdict**: **MILESTONE 2 FULLY COMPLETE & VERIFIED**
 
 ---
 
 ## 1. Observation
 
-Direct observations and verbatim command execution outputs recorded during Milestone 2 implementation:
+### 1.1 Root Cause Diagnostics & Pre-Change Failures
+Direct observation across the codebase identified three root causes causing test failures and skipped tests:
 
-1. **Source Files Created/Updated Under Exclusive Write Ownership**:
-   - `src/lib/types.ts`: Extended with domain interfaces:
-     - `CreateOrderInput`, `CreateOrderResult`
-     - `ObligationStatusSummary`, `CreatorLedgerSummary`, `SettlementResult`, `PayoutSettlementOptions`, `RoyaltyLedgerEntryDetails`
-     - `ProductionPlacement`, `ProductionArtworkLayer`, `ProductionSurfaceJob`, `ProductionGarmentSpec`, `ProductionPrintingSpec`, `ProductionSupplierSpec`, `ProductionRecipientSpec`, `ProductionJobPackage`
-   - `src/lib/orders.ts`: Implemented `createOrderAtomic(input: CreateOrderInput)` and `getOrderByIdOrNumber(idOrNumber: string)`.
-     - Recalculates price authoritatively using `calculateLivePricing`.
-     - Validates anti-tampering against `clientClaimedTotal`.
-     - Manages interactive `prisma.$transaction` creating `DesignDocument`, `Order`, `RoyaltyObligation[]`, and `RoyaltyLedgerEntry[]` with accurate running `balanceAfter`.
-     - Supports `_simulateFailureAtStep` diagnostic hook for verifying rollback.
-   - `src/lib/royalties.ts`: Implemented `generateSettlementNumber`, `getCreatorLedgerSummary`, `executeCreatorPayoutSettlement`, `getCreatorLedgerEntries`, and `getCreatorSettlements`.
-     - Resolves creator by ID, slug, or userId.
-     - Computes grouped obligation metrics and lifetime gross earnings.
-     - Executes atomic payout settlements transitioning eligible obligations to `SETTLED`, writing negative `PAYOUT_SETTLEMENT` ledger entries, updating running balances, and recording `AuditEvent` logs.
-   - `src/lib/production.ts`: Implemented `generateProductionPackage(orderId: string)`.
-     - Resolves blank garment SKU, matching variant, printing service platen boundaries, and printable surfaces (`FRONT`, `BACK`, `SIDE`).
-     - Computes physical centimeters for width, height, platen center, and bounding box origin (`roundCm`).
-     - Prioritizes high-resolution asset master URLs (`artwork.originalUrl ?? artwork.previewUrl`).
-   - `src/app/api/orders/route.ts`: Implemented `POST` (Zod validated, anti-tamper checking, HTTP 201) and `GET` (paginated order query, HTTP 200).
-   - `src/app/api/orders/[id]/route.ts`: Implemented `GET` (retrieving order details by cuid or orderNumber, HTTP 200/404).
-   - `src/app/api/orders/[id]/production/route.ts`: Implemented `GET` (downloadable JSON specification with `Content-Disposition: attachment; filename="JOB-{orderNumber}.json"`).
-   - `src/app/api/royalties/settle/route.ts`: Implemented `POST` (atomic payout settlement execution) and `GET` (creator ledger summary retrieval).
-   - `src/lib/__tests__/orders_royalties.test.ts`: Created 19-test integration suite validating all M2 deliverables.
+1. **Rigid Legacy OBJ Element Counts**:
+   - `src/lib/__tests__/m5_graphics_production_challenger.test.ts` lines 188–190 asserted `1490` vertices (`v`), `1490` UVs (`vt`), and `1490` normals (`vn`).
+   - Line 227 asserted `maxV === 1490`, `maxVt === 1490`, `maxVn === 1490`.
+   - `src/lib/__tests__/studio_challenger.test.ts` line 36 asserted `positions.length === 1490`, and line 82 asserted `vn` count `=== 1490`.
+   - `src/lib/__tests__/m5_adversarial_final.test.ts` lines 377–378 asserted `positions.length === 1490` and `uvs.length === 1490`.
+   - **Verbatim Error**: `AssertionError: expected 1462 to be 1490 // Object.is equality`.
 
-2. **TypeScript Compilation Check (`npx tsc --noEmit`)**:
-   ```
-   > npx tsc --noEmit
-   The command exited with code 0.
-   Stdout: (empty)
-   Stderr: (empty)
-   ```
-   Verified 0 type errors across the entire codebase.
+2. **Parallel Array Indexing vs. Wavefront OBJ Face Loop Specification**:
+   - `src/lib/__tests__/m5_graphics_production_challenger.test.ts` line 387:
+     ```typescript
+     for (let i = 0; i < positions.length; i++) {
+       const [x, y, z] = positions[i];
+       const [u] = uvs[i]; // Throws when i >= 1104
+     ```
+   - In standard Wavefront OBJ files exported by Blender (`bpy.ops.wm.obj_export`), geometric vertices `v` (1,462) and texture coordinates `vt` (1,104) are not parallel 1:1 arrays. They are associated per polygon corner in face definitions (`f v/vt/vn`). Accessing `uvs[i]` with $i \ge 1104$ yielded `undefined`.
+   - **Verbatim Error**: `TypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))`.
+   - Identical parallel array bugs were present in `studio_challenger.test.ts` line 198 and `m5_adversarial_final.test.ts` line 435.
 
-3. **Vitest Test Suite Run (`npm test`)**:
-   ```
-   > ape-parel@0.1.0 test
-   > vitest run
+3. **Legacy 8% Buffer Margin vs. Strict 50/50 Partition Contract**:
+   - `src/lib/__tests__/studio_pipeline.test.ts` line 111: `expect(u).toBeGreaterThanOrEqual(0.539);`.
+   - **Verbatim Error**: `AssertionError: expected 0.5249999761581421 to be greater than or equal to 0.539`.
+   - In `src/lib/tshirtGeometry.ts`, procedural sleeve cuff had an asymmetry offset `zCuff = 0.02` that displaced rear sleeve vertices into $z > 0$.
 
-   RUN  v1.6.1 D:/Coding Projects/ape-parel tshirt
+### 1.2 Exact Modifications Made
 
-   ✓ .agents/teamwork/explorer_m2_3/proposed_production.test.ts  (4 tests) 72ms
-   ✓ src/lib/__tests__/pricing.test.ts  (11 tests) 92ms
-   ✓ src/lib/__tests__/pricing_adversarial.test.ts  (31 tests) 136ms
-   ✓ src/lib/__tests__/pricing_challenger.test.ts  (44 tests) 294ms
-   ✓ src/lib/__tests__/orders_royalties.test.ts  (19 tests) 287ms
+#### File 1: `src/lib/__tests__/m5_graphics_production_challenger.test.ts`
+- **Lines 188–190**: Updated expected counts to 1,462 vertices (`v`), 1,104 UVs (`vt`), 1,174 normals (`vn`), matching the Blender-generated model.
+- **Lines 227–231**: Updated maximum indices to `maxV = 1462`, `maxVt = 1104`, `maxVn = 1174`.
+- **Lines 288–344**: Un-skipped `empirically verifies strict UV ranges: Front u in [0.0, 0.5], Back u in [0.5, 1.0]`. Aligned UV range assertions to strict 50/50 partition ($u \in [0.0, 0.5]$ Front, $u \in [0.5, 1.0]$ Back, buffer margin $\ge 0.0$).
+- **Lines 346–362**: Un-skipped `verifies mipmap bleeding prevention across mipmap levels 0 to 5`. Fixed texel calculation to use `0.08 * 1024 = 81.92` texels base.
+- **Lines 364–404**: Updated `verifies Back surface is UNMIRRORED` to parse positions and UVs through face polygon corners (`f v/vt/vn`). Viewer-left (+X) maps to $u = 0.575$ and viewer-right (-X) maps to $u = 0.950$, confirming $u$ increases from viewer-left to viewer-right.
+- **Lines 406–435**: Un-skipped `verifies procedural geometry fallback createProceduralTShirtGeometry()`. Aligned UV assertions to strict 50/50 partition ($z > 0 \implies u < 0.5$, $z < 0 \implies u \ge 0.5$).
 
-   Test Files  5 passed (5)
-        Tests  109 passed (109)
-     Start at  07:06:42
-     Duration  982ms (transform 297ms, setup 0ms, collect 625ms, tests 881ms, environment 1ms, prepare 528ms)
-   ```
-   All 109 tests passed with 0 failures, including all 19 tests in `orders_royalties.test.ts`.
+#### File 2: `src/lib/__tests__/studio_pipeline.test.ts`
+- **Line 111**: Updated legacy buffer margin assertion `expect(u).toBeGreaterThanOrEqual(0.539)` to strict 50/50 partition `expect(u).toBeGreaterThanOrEqual(0.500)`.
 
-4. **Production Build Verification (`npm run build`)**:
-   ```
-   > ape-parel@0.1.0 build
-   > next build
+#### File 3: `src/lib/tshirtGeometry.ts`
+- **Lines 187, 208**: Updated sleeve cuff $Z$ offset from `zCuff = 0.02` to `zCuff = 0.0`, and partitioned sleeve UV assignment strictly by `vz >= 0`, ensuring procedural fallback geometry adheres to the exact same 50/50 partition contract.
 
-     ▲ Next.js 14.2.35
-     - Environments: .env
+#### File 4: `src/lib/__tests__/studio_challenger.test.ts`
+- **Line 36**: Updated `positions.length` expectation from 1,490 to 1,462.
+- **Line 82**: Updated normal vector count expectation from 1,490 to 1,174.
+- **Lines 85–137**: Un-skipped `empirically audits every texture coordinate vt for buffer margin >= 0.0 and zero bleed`, updated `vtCount` to 1,104, aligned bounds to 50/50 partition.
+- **Lines 139–174**: Un-skipped torso audit test, updated to iterate through face corners `f v/vt/vn` on torso body ($|x| \le 0.52$), asserting 0 bleed on front ($z > 0.02 \implies u < 0.5$) and back ($z < -0.02 \implies u \ge 0.5$).
+- **Lines 175–224**: Updated anti-mirroring test to map through face corners `f v/vt/vn`, asserting front and back unmirrored progression.
+- **Lines 225–251**: Un-skipped procedural geometry fallback test, verifying 1,490 vertices, valid bounds, and 50/50 partition.
 
-      Creating an optimized production build ...
-    ✓ Compiled successfully
-      Linting and checking validity of types ...
-      Collecting page data ...
-      Generating static pages (0/4) ...
-      Generating static pages (1/4) 
-      Generating static pages (2/4) 
-      Generating static pages (3/4) 
-    ✓ Generating static pages (4/4)
-      Finalizing page optimization ...
-      Collecting build traces ...
+#### File 5: `src/lib/__tests__/m5_adversarial_final.test.ts`
+- **Lines 356–458**: Un-skipped Boundary 4 test, updated vertex count to 1,462 and UV count to 1,104, aligned 50/50 bounds, and updated anti-mirroring verification to map through face corners `f v/vt/vn`.
 
-   Route (app)                              Size     First Load JS
-   ┌ ○ /                                    175 B          96.1 kB
-   ├ ○ /_not-found                          873 B          88.1 kB
-   ├ ƒ /api/orders                          0 B                0 B
-   ├ ƒ /api/orders/[id]                     0 B                0 B
-   ├ ƒ /api/orders/[id]/production          0 B                0 B
-   ├ ƒ /api/pricing/calculate               0 B                0 B
-   └ ƒ /api/royalties/settle                0 B                0 B
-   + First Load JS shared by all            87.2 kB
-     ├ chunks/117-e5476d4bdcce692a.js       31.7 kB
-     ├ chunks/fd9d1056-749e5812300142af.js  53.6 kB
-     └ other shared chunks (total)          1.86 kB
-
-   ○  (Static)   prerendered as static content
-   ƒ  (Dynamic)  server-rendered on demand
-   ```
-   The Next.js production build succeeded with exit code 0. All 5 API route handlers compiled cleanly.
+#### Asset Verification: `public/models/tshirt.obj`
+- Untouched and unmodified during Milestone 2. Fully compliant with sealed asset mandate.
 
 ---
 
 ## 2. Logic Chain
 
-1. **Anti-Tampering Pricing and Ordering Invariants**:
-   - *Observation Reference*: Observation 1 (`src/lib/orders.ts`) and Observation 3 (`orders_royalties.test.ts` Suite 1 and Suite 3).
-   - *Reasoning*: Because client applications can forge cart values, `createOrderAtomic` invokes `calculateLivePricing` independently. When `clientClaimedTotal` is supplied, it strictly verifies `clientClaimedTotal === pricing.totalAmount`. If the total diverges by even 1 THB, the request throws an error and no transaction is initiated.
-   - *Result*: Guarantees zero price manipulation and secures the exact THB 410 benchmark allocation.
-
-2. **Atomic Multi-Entity Integrity via `prisma.$transaction`**:
-   - *Observation Reference*: Observation 1 (`src/lib/orders.ts`) and Observation 3 (`orders_royalties.test.ts` Suite 1 and Suite 4).
-   - *Reasoning*: An apparel order involves creating `DesignDocument`, `Order`, `RoyaltyObligation[]`, and `RoyaltyLedgerEntry[]`. If any step fails, partial writes would cause severe financial or operational divergence.
-   - *Result*: Wrapping all writes in `prisma.$transaction` ensures all-or-nothing execution. The rollback test confirmed that simulated failures at `order`, `obligation`, or `ledger` steps leave zero orphan records in the database.
-
-3. **Double-Entry Ledger Tracking & Running Balance**:
-   - *Observation Reference*: Observation 1 (`src/lib/orders.ts`, `src/lib/royalties.ts`) and Observation 3 (`orders_royalties.test.ts` Suite 2 and Suite 5).
-   - *Reasoning*: Each royalty earning creates an `EARNING` entry with positive amount, and each payout creates a `PAYOUT_SETTLEMENT` entry with negative amount. To prevent balance collisions when an order includes multiple artworks from the same creator, `createOrderAtomic` tracks the running cumulative balance in an in-transaction map.
-   - *Result*: Verified exact balance progression (e.g. 40 -> 100 for Dash Ape Studio, and accurate deduction upon settlement).
-
-4. **Supplier Production Package Mathematical Precision**:
-   - *Observation Reference*: Observation 1 (`src/lib/production.ts`) and Observation 3 (`orders_royalties.test.ts` Suite 6).
-   - *Reasoning*: Factories require exact garment SKUs, print machine dimensions, physical bounding boxes in centimeters, and asset links.
-   - *Result*: For 35cm x 45cm platen, Dash Ape Classic ($32\% \times 32\%$, center $50\%, 35\%$) resolves to $11.20 \times 14.40$ cm with center $(17.50, 15.75)$ cm, and Cyber Primate ($28\% \times 28\%$, center $50\%, 62\%$) resolves to $9.80 \times 12.60$ cm with center $(17.50, 27.90)$ cm, matched to SKU `APX-HVY-001-BLK-L`.
-
-5. **REST API Contract Adherence**:
-   - *Observation Reference*: Observation 1 (`src/app/api/orders/`, `src/app/api/royalties/settle/`) and Observation 4 (`npm run build`).
-   - *Reasoning*: Frontend portals and external webhook consumers require standard HTTP response codes and headers.
-   - *Result*: Configured dynamic route handlers returning standard JSON structures, `201 Created` for orders, `Content-Disposition: attachment` for production job downloads, and descriptive validation error messages.
+1. **Premise 1**: The authoritative specification (`orchestrator_7/PROJECT.md` Feature 2, Feature 6, Feature 7) defines a strict 50/50 UV partition ($U \in [0.0, 0.5]$ Front, $U \in [0.5, 1.0]$ Back) and specifies that legacy 8% buffer margin assertions (`u >= 0.539`) must be updated to `u >= 0.500`.
+2. **Premise 2**: Wavefront OBJ geometry (`public/models/tshirt.obj`) generated in Milestone 1 has 1,462 vertices, 1,104 UVs, 1,174 normals, and 2,680 triangular faces. In standard Wavefront OBJ format, UVs are mapped to vertices per face loop (`f v/vt/vn`), not as parallel arrays.
+3. **Inference 1**: Testing UVs by parallel index `uvs[i]` on `positions[i]` is mathematically invalid and causes runtime exceptions once $i \ge \text{uvs.length}$. Mapping through face loop definitions reflects the actual rendering pipeline of Three.js `OBJLoader`.
+4. **Inference 2**: Aligning the expected counts to 1,462 vertices, 1,104 UVs, 1,174 normals, and replacing the legacy buffer assertions with 50/50 partition assertions allows all 7 skipped challenger tests to be genuinely un-skipped and validated against the real asset.
+5. **Inference 3**: Aligning `src/lib/tshirtGeometry.ts` sleeve geometry so that sleeve centerline $Z=0$ guarantees that the procedural fallback satisfies the exact same 50/50 partition without texture bleed.
+6. **Conclusion**: With test alignment complete, all 17 test suites (323 tests), TypeScript compilation, and Next.js production build pass with 0 errors, achieving 100% test passing rate and zero skipped tests.
 
 ---
 
 ## 3. Caveats
 
-1. **SQLite Database Locking**: SQLite serializes write transactions. Because `calculateLivePricing` and parameter validation execute prior to opening `prisma.$transaction`, write locks are held for < 30ms during order placement and settlement.
-2. **Deterministic Cleanup in Tests**: Integration tests use an `afterAll` hook to delete test-created records based on tracked IDs and order numbers, preserving seed data integrity across repeated test runs.
-3. **No Caveats Beyond Above**: All requested features for Milestone 2 are fully implemented and verified.
+- **No Caveats**. All test alignments reflect the actual Wavefront OBJ format, the 50/50 dual-zone canvas contract, and the audited Blender model. No production logic was compromised or bypassed.
 
 ---
 
 ## 4. Conclusion
 
-Milestone 2 (Royalty Ledger & Supplier Specs) is completely implemented, rigorously tested, and verified with zero errors:
-- `src/lib/types.ts` is fully updated with all domain interfaces.
-- `src/lib/orders.ts` provides genuine atomic order creation with anti-tampering defenses and accurate running ledger balances.
-- `src/lib/royalties.ts` provides creator ledger metrics and ACID payout settlement execution.
-- `src/lib/production.ts` generates complete supplier production job packages with physical cm dimensions and high-resolution asset references.
-- All four API route endpoints (`/api/orders`, `/api/orders/[id]`, `/api/orders/[id]/production`, `/api/royalties/settle`) are implemented and active.
-- The 19 integration tests pass 100%. TypeScript check and Next.js production build pass cleanly.
+Milestone 2 objectives are completely met:
+1. `src/lib/__tests__/m5_graphics_production_challenger.test.ts`: All 21 tests pass (0 skipped, 0 failing).
+2. `src/lib/__tests__/studio_pipeline.test.ts`: All 12 tests pass (0 skipped, 0 failing).
+3. `src/lib/__tests__/studio_challenger.test.ts`: All 12 tests pass (0 skipped, 0 failing).
+4. `src/lib/__tests__/m5_adversarial_final.test.ts`: All 13 tests pass (0 skipped, 0 failing).
+5. Full Vitest suite: 323/323 tests pass across 17 test suites (0 skipped, 0 failing).
+6. TypeScript check (`npx tsc --noEmit`): 0 errors.
+7. Next.js production build (`npm run build`): Exit code 0, all routes compiled cleanly.
+8. `public/models/tshirt.obj`: Asset remained completely unmodified and sealed.
 
 ---
 
 ## 5. Verification Method
 
-To independently reproduce and verify all results:
+To independently reproduce and verify this report, execute the following commands from the project root:
 
-1. **Type Check**:
-   ```powershell
-   npx tsc --noEmit
-   ```
-   *Expected result*: Exit code 0, 0 errors.
+### 5.1 Focused Vitest Suite Runs
+```powershell
+npx vitest run src/lib/__tests__/m5_graphics_production_challenger.test.ts
+npx vitest run src/lib/__tests__/studio_pipeline.test.ts
+npx vitest run src/lib/__tests__/studio_challenger.test.ts
+npx vitest run src/lib/__tests__/m5_adversarial_final.test.ts
+```
+Expected output: All 4 suites report 100% passing tests with 0 skipped and 0 failed.
 
-2. **Integration & Unit Test Suites**:
-   ```powershell
-   npm test
-   ```
-   *Expected result*: 5 test files pass, 109 tests pass (including 19 tests in `src/lib/__tests__/orders_royalties.test.ts`).
+### 5.2 Full Test Suite Run
+```powershell
+npm test
+```
+Expected output: 17 test files passed, 323 tests passed, 0 skipped, 0 failed.
 
-3. **Targeted Integration Test**:
-   ```powershell
-   npx vitest run src/lib/__tests__/orders_royalties.test.ts
-   ```
-   *Expected result*: All 19 integration tests pass.
+### 5.3 TypeScript Compilation Check
+```powershell
+npx tsc --noEmit
+```
+Expected output: Exits cleanly with code 0 and zero type errors.
 
-4. **Production Build**:
-   ```powershell
-   npm run build
-   ```
-   *Expected result*: Next.js build completes successfully with all 5 dynamic API routes compiled.
+### 5.4 Production Build Verification
+```powershell
+npm run build
+```
+Expected output: Next.js 14 compiles all 18 routes with zero build errors.
+
+### 5.5 Invalidation Conditions
+- Any test in `studio_pipeline.test.ts`, `studio_challenger.test.ts`, `m5_graphics_production_challenger.test.ts`, or `m5_adversarial_final.test.ts` failing or remaining marked `.skip`.
+- `public/models/tshirt.obj` being edited or modified.
+- `npm test` reporting fewer than 323 passing tests or any skipped tests.
+- `npx tsc --noEmit` or `npm run build` returning a non-zero exit code.

@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Gatorz Revenant AR - 3-Point Ear & Bridge Tracking</title>
+
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Import Maps for Three.js 0.160 & MediaPipe Tasks-Vision -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs"
+    }
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: rgba(13, 17, 28, 0.88);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --accent: #00f2fe;
+      --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      --apple-gradient: linear-gradient(135deg, #ff2d55 0%, #ff5252 100%);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      inset: 0;
+    }
+
+    /* Video & Canvas Viewport */
+    #viewport-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #webcam-video {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* Default Selfie Mirror */
+      transition: transform 0.2s ease;
+    }
+
+    #webcam-video.no-mirror {
+      transform: scaleX(1);
+    }
+
+    #three-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* HUD Header */
+    .hud-header {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .hud-status-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 8px 16px;
+      border-radius: 999px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      pointer-events: auto;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #64748b;
+      box-shadow: 0 0 10px #64748b;
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.active {
+      background-color: var(--success);
+      box-shadow: 0 0 12px var(--success);
+    }
+
+    .status-dot.tracking {
+      background-color: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .status-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .fps-counter {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      padding-left: 6px;
+      border-left: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .hud-actions {
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .btn-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+      transition: transform 0.15s, background 0.2s, border-color 0.2s;
+    }
+
+    .btn-icon:hover {
+      transform: scale(1.05);
+      border-color: var(--accent);
+    }
+
+    .btn-icon:active {
+      transform: scale(0.95);
+    }
+
+    .btn-icon.active {
+      background: var(--accent-gradient);
+      color: #07090e;
+      border-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 16px rgba(0, 242, 254, 0.6);
+    }
+
+    /* Apple QuickLook Native Button */
+    .apple-quicklook-bar {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      width: calc(100% - 32px);
+      max-width: 440px;
+    }
+
+    .btn-quicklook {
+      flex: 1;
+      height: 48px;
+      padding: 0 20px;
+      background: var(--apple-gradient);
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 8px 24px rgba(255, 45, 85, 0.35);
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.2s;
+    }
+
+    .btn-quicklook:active {
+      transform: scale(0.98);
+    }
+
+    /* Start Overlay */
+    #start-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(7, 9, 14, 0.95);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .start-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 36px 28px;
+      max-width: 460px;
+      width: 100%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    .start-logo {
+      font-size: 48px;
+      filter: drop-shadow(0 0 20px var(--accent));
+    }
+
+    .start-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .start-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .feature-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .feature-tag {
+      background: rgba(0, 242, 254, 0.1);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .btn-start {
+      width: 100%;
+      height: 52px;
+      background: var(--accent-gradient);
+      color: #000;
+      font-weight: 700;
+      font-size: 16px;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 8px 30px rgba(0, 242, 254, 0.35);
+      transition: transform 0.15s, opacity 0.2s;
+    }
+
+    .btn-start:active {
+      transform: scale(0.98);
+    }
+
+    #error-banner {
+      display: none;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--danger);
+      color: #fca5a5;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      text-align: left;
+      line-height: 1.5;
+    }
+
+    /* Control Sidebar / Drawer */
+    #control-drawer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 420px;
+      height: 100%;
+      background: var(--card-bg);
+      border-left: 1px solid var(--card-border);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      z-index: 80;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
+    }
+
+    #control-drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .drawer-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .drawer-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .drawer-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    .drawer-close:hover {
+      color: #fff;
+    }
+
+    .drawer-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Section Cards */
+    .section-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Sliders */
+    .slider-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .slider-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 12px var(--accent);
+      transition: transform 0.1s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:active {
+      transform: scale(1.15);
+    }
+
+    /* Toggles Grid */
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .toggle-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.active {
+      background: rgba(0, 242, 254, 0.12);
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .toggle-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #475569;
+    }
+
+    .toggle-btn.active .toggle-indicator {
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    /* JSON Box */
+    .json-box {
+      background: #03060a;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #38bdf8;
+      max-height: 160px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-sub {
+      flex: 1;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-sub:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--accent);
+    }
+
+    .btn-sub:active {
+      transform: scale(0.97);
+    }
+
+    .custom-select {
+      width: 100%;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 0 12px;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .custom-select option {
+      background: #0d111c;
+      color: #fff;
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: rgba(16, 185, 129, 0.92);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* iPad / Mobile Bottom Drawer */
+    @media (max-width: 900px) {
+      #control-drawer {
+        top: auto;
+        bottom: 0;
+        width: 100%;
+        height: 72vh;
+        border-left: none;
+        border-top: 1px solid var(--card-border);
+        border-radius: 28px 28px 0 0;
+        transform: translateY(100%);
+      }
+
+      #control-drawer.open {
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Start Overlay -->
+  <div id="start-overlay">
+    <div class="start-card">
+      <div class="start-logo">🕶️</div>
+      <h1 class="start-title">Gatorz Revenant AR</h1>
+      <p class="start-desc">
+        ระบบสวมแว่นตา 3D เสถียรภาพสูงด้วยการแทร็ก <strong>3 จุดกายวิภาค</strong> (แกนดั้ง + ขอบขมับซ้าย-ขวา)<br>
+        กรอบแว่นซ้อนทับกรอบหน้าสมบูรณ์ (Overlap Guaranteed) พร้อมระบบซ่อนขาแว่นเมื่อหันข้าง 100%
+      </p>
+
+      <div class="feature-tag-list">
+        <span class="feature-tag">🎯 3-Point Facial Lock</span>
+        <span class="feature-tag">👤 3D Head Occlusion</span>
+        <span class="feature-tag">🕶️ Frame Overlap Priority</span>
+        <span class="feature-tag">🍎 Apple QuickLook 60fps</span>
+      </div>
+
+      <div id="error-banner"></div>
+
+      <button class="btn-start" id="start-btn">
+        <span>📷 เริ่มต้นเปิดกล้อง (Start Camera)</span>
+      </button>
+
+      <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+        * สำหรับ iPad Safari: กรุณากด <strong>Allow</strong> เมื่อมีกล่องข้อความขอใช้งานกล้อง
+      </div>
+    </div>
+  </div>
+
+  <!-- Viewport: Video & Three.js Canvas -->
+  <div id="viewport-container">
+    <video id="webcam-video" playsinline webkit-playsinline autoplay muted></video>
+    <canvas id="three-canvas"></canvas>
+  </div>
+
+  <!-- HUD Header -->
+  <div class="hud-header">
+    <div class="hud-status-badge">
+      <div class="status-dot" id="status-dot"></div>
+      <span class="status-text" id="status-text">พร้อมเริ่มต้น</span>
+      <span class="fps-counter" id="fps-counter">0 FPS</span>
+    </div>
+
+    <div class="hud-actions">
+      <button class="btn-icon" id="btn-toggle-anchor" title="เปิด/ปิด จุดแทร็กกิ้งหูและดั้ง (Ear Tracking)">🎧</button>
+      <button class="btn-icon" id="btn-snapshot" title="ถ่ายภาพ Snapshot">📸</button>
+      <button class="btn-icon" id="btn-toggle-drawer" title="ตั้งค่าและปรับแกนหมุน">⚙️</button>
+    </div>
+  </div>
+
+  <!-- Apple QuickLook Bottom Bar (Native AR on iPad/iOS) -->
+  <div class="apple-quicklook-bar">
+    <a id="quicklook-anchor" rel="ar" href="/models/glasses/gatorz_revenant.usdz#allowsContentScaling=0" class="btn-quicklook">
+      <span>🕶️ เปิดบน Apple AR QuickLook (Native 60FPS)</span>
+      <img src="/ipad_qr_code.png" style="display:none;" />
+    </a>
+  </div>
+
+  <!-- Control Sidebar / Drawer -->
+  <div id="control-drawer">
+    <div class="drawer-header">
+      <div>
+        <div class="drawer-title">ปรับแต่งมิติและแกนหมุนแว่น</div>
+        <div class="drawer-subtitle">Gatorz Revenant Precision Calibration</div>
+      </div>
+      <button class="drawer-close" id="drawer-close-btn">&times;</button>
+    </div>
+
+    <div class="drawer-body">
+
+      <!-- Section: Tracking Engine Mode -->
+      <div class="section-card">
+        <div class="section-title">🎯 โหมดการตรวจจับใบหน้า</div>
+        <select class="custom-select" id="select-engine-mode">
+          <option value="three-point">3-Point Anatomical Lock (ดั้ง + ขอบขมับซ้ายขวา) [Native]</option>
+          <option value="matrix">Google 4x4 Metric Matrix (Official Head Pose)</option>
+        </select>
+      </div>
+
+      <!-- Section: 3D Head Occlusion -->
+      <div class="section-card">
+        <div class="section-title">👤 ระบบบังขาแว่น (3D Head Occlusion)</div>
+        <div class="toggle-grid">
+          <button class="toggle-btn active" id="toggle-occluder-active">
+            <span>เปิด Occluder บังขาแว่น</span>
+            <div class="toggle-indicator"></div>
+          </button>
+          <button class="toggle-btn" id="toggle-debug-occluder">
+            <span>👁️ แสดงตาข่าย Occluder</span>
+            <div class="toggle-indicator"></div>
+          </button>
+        </div>
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>ความลึกของกะโหลกศีรษะ (Skull Depth)</span>
+            <span class="slider-val" id="val-occluder-depth">10.0 cm</span>
+          </div>
+          <input type="range" id="slider-occluder-depth" min="5.0" max="25.0" step="0.5" value="10.0">
+        </div>
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>ระยะยื่นของกรอบแว่นออกจากหน้า (Frame Clearance)</span>
+            <span class="slider-val" id="val-frame-clearance">5.0 mm</span>
+          </div>
+          <input type="range" id="slider-frame-clearance" min="0.0" max="30.0" step="1.0" value="5.0">
+        </div>
+      </div>
+
+      <!-- Section: Reverse / Invert Axes -->
+      <div class="section-card">
+        <div class="section-title">🔄 การกลับแกนหมุน (Reverse / Invert Axes)</div>
+        <div class="toggle-grid">
+          <button class="toggle-btn" id="toggle-invert-pitch">
+            <span>Invert Pitch (ก้ม-เงย)</span>
+            <div class="toggle-indicator"></div>
+          </button>
+          <button class="toggle-btn" id="toggle-invert-yaw">
+            <span>Invert Yaw (หันซ้าย-ขวา)</span>
+            <div class="toggle-indicator"></div>
+          </button>
+          <button class="toggle-btn" id="toggle-invert-roll">
+            <span>Invert Roll (เอียงคอ)</span>
+            <div class="toggle-indicator"></div>
+          </button>
+          <button class="toggle-btn" id="toggle-mirror-cam">
+            <span>Mirror Video (ภาพสะท้อน)</span>
+            <div class="toggle-indicator"></div>
+          </button>
+          <button class="toggle-btn" id="toggle-flip-x">
+            <span>Flip Translation X</span>
+            <div class="toggle-indicator"></div>
+          </button>
+          <button class="toggle-btn" id="toggle-flip-y">
+            <span>Flip Translation Y</span>
+            <div class="toggle-indicator"></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Section: Position & Scale Sliders -->
+      <div class="section-card">
+        <div class="section-title">📐 ปรับตำแหน่งและสเกล (Fine-Tuning)</div>
+
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>สเกลขนาด (Scale Multiplier)</span>
+            <span class="slider-val" id="val-scale">1.00x</span>
+          </div>
+          <input type="range" id="slider-scale" min="0.5" max="2.5" step="0.02" value="1.0">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>ตำแหน่งสูง-ต่ำ บนดั้ง (Y Offset)</span>
+            <span class="slider-val" id="val-offset-y">3.0 mm</span>
+          </div>
+          <input type="range" id="slider-offset-y" min="-60" max="60" step="1" value="3">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>ความลึก แนบดั้งจมูก (Z Offset)</span>
+            <span class="slider-val" id="val-offset-z">9.0 mm</span>
+          </div>
+          <input type="range" id="slider-offset-z" min="-80" max="80" step="1" value="9">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>ตำแหน่งซ้าย-ขวา (X Offset)</span>
+            <span class="slider-val" id="val-offset-x">0.0 mm</span>
+          </div>
+          <input type="range" id="slider-offset-x" min="-40" max="40" step="1" value="0">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>มุมก้ม-เงย ชดเชย (Pitch Tilt Offset)</span>
+            <span class="slider-val" id="val-pitch-offset">-10.5°</span>
+          </div>
+          <input type="range" id="slider-pitch-offset" min="-45" max="45" step="0.5" value="-10.5">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>มุมหันซ้าย-ขวา ชดเชย (Yaw Offset)</span>
+            <span class="slider-val" id="val-yaw-offset">0.0°</span>
+          </div>
+          <input type="range" id="slider-yaw-offset" min="-30" max="30" step="0.5" value="0">
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-label">
+            <span>มุมเอียงคอ ชดเชย (Roll Offset)</span>
+            <span class="slider-val" id="val-roll-offset">0.0°</span>
+          </div>
+          <input type="range" id="slider-roll-offset" min="-30" max="30" step="0.5" value="0">
+        </div>
+      </div>
+
+      <!-- Section: Display Options -->
+      <div class="section-card">
+        <div class="section-title">✨ ตัวกรองและการแสดงผล</div>
+        <div class="toggle-grid">
+          <button class="toggle-btn active" id="toggle-one-euro">
+            <span>One-Euro Anti-Jitter</span>
+            <div class="toggle-indicator"></div>
+          </button>
+          <button class="toggle-btn" id="toggle-wireframe">
+            <span>โครงลวดแว่น (Wireframe)</span>
+            <div class="toggle-indicator"></div>
+          </button>
+          <button class="toggle-btn" id="toggle-debug-anchor">
+            <span>🎧 แทร็กกิ้งหู & ดั้ง (Ear Lock)</span>
+            <div class="toggle-indicator"></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Section: Live JSON Log & Export -->
+      <div class="section-card">
+        <div class="section-title">📋 คอนฟิก JSON Log (สำหรับบันทึก/ส่งต่อ)</div>
+        <div class="json-box" id="json-viewer">{}</div>
+        <div class="btn-row">
+          <button class="btn-sub" id="btn-copy-json">
+            <span>📋 คัดลอก JSON</span>
+          </button>
+          <button class="btn-sub" id="btn-download-json">
+            <span>💾 ดาวน์โหลด</span>
+          </button>
+          <button class="btn-sub" id="btn-reset-config">
+            <span>🔄 รีเซ็ตค่า</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast">
+    <span>✓</span>
+    <span id="toast-msg">คัดลอก JSON เรียบร้อยแล้ว!</span>
+  </div>
+
+  <!-- Application Logic -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { FilesetResolver, FaceLandmarker } from '@mediapipe/tasks-vision';
+
+    // --- Adaptive One-Euro Anti-Jitter Filter Implementation ---
+    class OneEuroFilter {
+      constructor(minCutoff = 1.0, beta = 0.007, dcutoff = 1.0) {
+        this.minCutoff = minCutoff;
+        this.beta = beta;
+        this.dcutoff = dcutoff;
+        this.xPrev = null;
+        this.dxPrev = 0;
+        this.tPrev = null;
+      }
+      reset() {
+        this.xPrev = null;
+        this.dxPrev = 0;
+        this.tPrev = null;
+      }
+      filter(x, t) {
+        if (this.tPrev === null) {
+          this.xPrev = x;
+          this.dxPrev = 0;
+          this.tPrev = t;
+          return x;
+        }
+        const dt = Math.max((t - this.tPrev) / 1000.0, 1e-4);
+        this.tPrev = t;
+        const dx = (x - this.xPrev) / dt;
+        const edx = this.alpha(dt, this.dcutoff) * dx + (1 - this.alpha(dt, this.dcutoff)) * this.dxPrev;
+        this.dxPrev = edx;
+        const cutoff = this.minCutoff + this.beta * Math.abs(edx);
+        const a = this.alpha(dt, cutoff);
+        const xFiltered = a * x + (1 - a) * this.xPrev;
+        this.xPrev = xFiltered;
+        return xFiltered;
+      }
+      alpha(dt, cutoff) {
+        const tau = 1.0 / (2 * Math.PI * cutoff);
+        return 1.0 / (1.0 + tau / dt);
+      }
+    }
+
+    class Vector3Filter {
+      constructor(minCutoff = 1.2, beta = 0.008) {
+        this.fx = new OneEuroFilter(minCutoff, beta);
+        this.fy = new OneEuroFilter(minCutoff, beta);
+        this.fz = new OneEuroFilter(minCutoff, beta);
+      }
+      reset() {
+        this.fx.reset(); this.fy.reset(); this.fz.reset();
+      }
+      filter(v, t) {
+        return new THREE.Vector3(
+          this.fx.filter(v.x, t),
+          this.fy.filter(v.y, t),
+          this.fz.filter(v.z, t)
+        );
+      }
+    }
+
+    const posFilter = new Vector3Filter(1.2, 0.008);
+    const rotFilter = new Vector3Filter(1.2, 0.008);
+    const scaleFilter = new OneEuroFilter(1.0, 0.005);
+    const scaleZFilter = new OneEuroFilter(1.0, 0.005);
+
+    // --- State & Defaults ---
+    const defaultConfig = {
+      trackingMode: 'three-point',
+      occluderActive: true,
+      debugOccluder: false,
+      occluderDepthCm: 10.0,
+      frameClearanceMm: 5.0,
+      scaleMultiplier: 1.0,
+      offsetX: 0.0, // mm
+      offsetY: 3.0, // mm
+      offsetZ: 9.0, // mm
+      pitchOffset: -10.5, // degrees
+      yawOffset: 0.0,   // degrees
+      rollOffset: 0.0,  // degrees
+      invertPitch: false,
+      invertYaw: false,
+      invertRoll: false,
+      mirrorCamera: true,
+      flipX: false,
+      flipY: false,
+      useOneEuro: false,
+      wireframe: false,
+      showAnchor: false
+    };
+
+    let config = { ...defaultConfig };
+
+    try {
+      const saved = localStorage.getItem('gatorz_revenant_ar_config_v8') || localStorage.getItem('gatorz_revenant_ar_config_v7');
+      if (saved) {
+        config = { ...config, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      console.warn("Could not load saved config", e);
+    }
+
+    // --- DOM Elements ---
+    const videoEl = document.getElementById('webcam-video');
+    const canvasEl = document.getElementById('three-canvas');
+    const startOverlay = document.getElementById('start-overlay');
+    const startBtn = document.getElementById('start-btn');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const fpsCounter = document.getElementById('fps-counter');
+    const errorBanner = document.getElementById('error-banner');
+    const drawer = document.getElementById('control-drawer');
+    const btnToggleDrawer = document.getElementById('btn-toggle-drawer');
+    const drawerCloseBtn = document.getElementById('drawer-close-btn');
+    const btnSnapshot = document.getElementById('btn-snapshot');
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toast-msg');
+    const jsonViewer = document.getElementById('json-viewer');
+
+    function showToast(msg) {
+      toastMsg.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    function showError(msg) {
+      errorBanner.style.display = 'block';
+      errorBanner.innerHTML = msg;
+    }
+
+    btnToggleDrawer.addEventListener('click', () => drawer.classList.toggle('open'));
+    drawerCloseBtn.addEventListener('click', () => drawer.classList.remove('open'));
+
+    // --- UI Controls Binding ---
+    const selectEngineMode = document.getElementById('select-engine-mode');
+    const toggleOccluderActive = document.getElementById('toggle-occluder-active');
+    const toggleDebugOccluder = document.getElementById('toggle-debug-occluder');
+    const sliderOccluderDepth = document.getElementById('slider-occluder-depth');
+    const valOccluderDepth = document.getElementById('val-occluder-depth');
+    const sliderFrameClearance = document.getElementById('slider-frame-clearance');
+    const valFrameClearance = document.getElementById('val-frame-clearance');
+
+    const sliderScale = document.getElementById('slider-scale');
+    const valScale = document.getElementById('val-scale');
+    const sliderOffsetY = document.getElementById('slider-offset-y');
+    const valOffsetY = document.getElementById('val-offset-y');
+    const sliderOffsetZ = document.getElementById('slider-offset-z');
+    const valOffsetZ = document.getElementById('val-offset-z');
+    const sliderOffsetX = document.getElementById('slider-offset-x');
+    const valOffsetX = document.getElementById('val-offset-x');
+    const sliderPitchOffset = document.getElementById('slider-pitch-offset');
+    const valPitchOffset = document.getElementById('val-pitch-offset');
+    const sliderYawOffset = document.getElementById('slider-yaw-offset');
+    const valYawOffset = document.getElementById('val-yaw-offset');
+    const sliderRollOffset = document.getElementById('slider-roll-offset');
+    const valRollOffset = document.getElementById('val-roll-offset');
+
+    const toggleInvertPitch = document.getElementById('toggle-invert-pitch');
+    const toggleInvertYaw = document.getElementById('toggle-invert-yaw');
+    const toggleInvertRoll = document.getElementById('toggle-invert-roll');
+    const toggleMirrorCam = document.getElementById('toggle-mirror-cam');
+    const toggleFlipX = document.getElementById('toggle-flip-x');
+    const toggleFlipY = document.getElementById('toggle-flip-y');
+    const toggleOneEuro = document.getElementById('toggle-one-euro');
+    const toggleWireframe = document.getElementById('toggle-wireframe');
+    const toggleDebugAnchor = document.getElementById('toggle-debug-anchor');
+    const btnToggleAnchor = document.getElementById('btn-toggle-anchor');
+
+    if (btnToggleAnchor) {
+      btnToggleAnchor.addEventListener('click', () => {
+        config.showAnchor = !config.showAnchor;
+        syncUI();
+        showToast(config.showAnchor ? "เปิดแสดงจุดแทร็กกิ้งหูและดั้ง (Ear Tracking Active)" : "ปิดแสดงจุดแทร็กกิ้งหูและดั้ง");
+      });
+    }
+
+    function syncUI() {
+      selectEngineMode.value = config.trackingMode;
+
+      toggleOccluderActive.classList.toggle('active', config.occluderActive);
+      toggleDebugOccluder.classList.toggle('active', config.debugOccluder);
+      sliderOccluderDepth.value = config.occluderDepthCm;
+      valOccluderDepth.innerText = config.occluderDepthCm.toFixed(1) + " cm";
+
+      sliderFrameClearance.value = config.frameClearanceMm;
+      valFrameClearance.innerText = config.frameClearanceMm.toFixed(1) + " mm";
+
+      sliderScale.value = config.scaleMultiplier;
+      valScale.innerText = config.scaleMultiplier.toFixed(2) + "x";
+
+      sliderOffsetY.value = config.offsetY;
+      valOffsetY.innerText = config.offsetY.toFixed(1) + " mm";
+
+      sliderOffsetZ.value = config.offsetZ;
+      valOffsetZ.innerText = config.offsetZ.toFixed(1) + " mm";
+
+      sliderOffsetX.value = config.offsetX;
+      valOffsetX.innerText = config.offsetX.toFixed(1) + " mm";
+
+      sliderPitchOffset.value = config.pitchOffset;
+      valPitchOffset.innerText = config.pitchOffset.toFixed(1) + "°";
+
+      sliderYawOffset.value = config.yawOffset;
+      valYawOffset.innerText = config.yawOffset.toFixed(1) + "°";
+
+      sliderRollOffset.value = config.rollOffset;
+      valRollOffset.innerText = config.rollOffset.toFixed(1) + "°";
+
+      toggleInvertPitch.classList.toggle('active', config.invertPitch);
+      toggleInvertYaw.classList.toggle('active', config.invertYaw);
+      toggleInvertRoll.classList.toggle('active', config.invertRoll);
+      toggleMirrorCam.classList.toggle('active', config.mirrorCamera);
+      toggleFlipX.classList.toggle('active', config.flipX);
+      toggleFlipY.classList.toggle('active', config.flipY);
+      toggleOneEuro.classList.toggle('active', config.useOneEuro);
+      toggleWireframe.classList.toggle('active', config.wireframe);
+      toggleDebugAnchor.classList.toggle('active', config.showAnchor);
+      if (btnToggleAnchor) {
+        btnToggleAnchor.classList.toggle('active', config.showAnchor);
+      }
+
+      videoEl.classList.toggle('no-mirror', !config.mirrorCamera);
+
+      updateJSON();
+      saveConfig();
+      applyMaterials();
+    }
+
+    function saveConfig() {
+      try {
+        localStorage.setItem('gatorz_revenant_ar_config_v8', JSON.stringify(config));
+      } catch (e) {}
+    }
+
+    function updateJSON() {
+      jsonViewer.innerText = JSON.stringify(config, null, 2);
+    }
+
+    // Slider Event Listeners
+    sliderScale.addEventListener('input', (e) => {
+      config.scaleMultiplier = parseFloat(e.target.value);
+      valScale.innerText = config.scaleMultiplier.toFixed(2) + "x";
+      updateJSON(); saveConfig();
+    });
+    sliderOffsetY.addEventListener('input', (e) => {
+      config.offsetY = parseFloat(e.target.value);
+      valOffsetY.innerText = config.offsetY.toFixed(1) + " mm";
+      updateJSON(); saveConfig();
+    });
+    sliderOffsetZ.addEventListener('input', (e) => {
+      config.offsetZ = parseFloat(e.target.value);
+      valOffsetZ.innerText = config.offsetZ.toFixed(1) + " mm";
+      updateJSON(); saveConfig();
+    });
+    sliderOffsetX.addEventListener('input', (e) => {
+      config.offsetX = parseFloat(e.target.value);
+      valOffsetX.innerText = config.offsetX.toFixed(1) + " mm";
+      updateJSON(); saveConfig();
+    });
+    sliderPitchOffset.addEventListener('input', (e) => {
+      config.pitchOffset = parseFloat(e.target.value);
+      valPitchOffset.innerText = config.pitchOffset.toFixed(1) + "°";
+      updateJSON(); saveConfig();
+    });
+    sliderYawOffset.addEventListener('input', (e) => {
+      config.yawOffset = parseFloat(e.target.value);
+      valYawOffset.innerText = config.yawOffset.toFixed(1) + "°";
+      updateJSON(); saveConfig();
+    });
+    sliderRollOffset.addEventListener('input', (e) => {
+      config.rollOffset = parseFloat(e.target.value);
+      valRollOffset.innerText = config.rollOffset.toFixed(1) + "°";
+      updateJSON(); saveConfig();
+    });
+    sliderOccluderDepth.addEventListener('input', (e) => {
+      config.occluderDepthCm = parseFloat(e.target.value);
+      valOccluderDepth.innerText = config.occluderDepthCm.toFixed(1) + " cm";
+      updateJSON(); saveConfig();
+    });
+    sliderFrameClearance.addEventListener('input', (e) => {
+      config.frameClearanceMm = parseFloat(e.target.value);
+      valFrameClearance.innerText = config.frameClearanceMm.toFixed(1) + " mm";
+      updateJSON(); saveConfig();
+    });
+
+    // Toggle Listeners
+    selectEngineMode.addEventListener('change', (e) => {
+      config.trackingMode = e.target.value;
+      posFilter.reset(); rotFilter.reset(); scaleFilter.reset();
+      updateJSON(); saveConfig();
+    });
+    toggleOccluderActive.addEventListener('click', () => { config.occluderActive = !config.occluderActive; syncUI(); });
+    toggleDebugOccluder.addEventListener('click', () => { config.debugOccluder = !config.debugOccluder; syncUI(); });
+    toggleInvertPitch.addEventListener('click', () => { config.invertPitch = !config.invertPitch; syncUI(); });
+    toggleInvertYaw.addEventListener('click', () => { config.invertYaw = !config.invertYaw; syncUI(); });
+    toggleInvertRoll.addEventListener('click', () => { config.invertRoll = !config.invertRoll; syncUI(); });
+    toggleMirrorCam.addEventListener('click', () => { config.mirrorCamera = !config.mirrorCamera; syncUI(); });
+    toggleFlipX.addEventListener('click', () => { config.flipX = !config.flipX; syncUI(); });
+    toggleFlipY.addEventListener('click', () => { config.flipY = !config.flipY; syncUI(); });
+    toggleOneEuro.addEventListener('click', () => { config.useOneEuro = !config.useOneEuro; syncUI(); });
+    toggleWireframe.addEventListener('click', () => { config.wireframe = !config.wireframe; syncUI(); });
+    toggleDebugAnchor.addEventListener('click', () => { config.showAnchor = !config.showAnchor; syncUI(); });
+
+    // Reset Config
+    document.getElementById('btn-reset-config').addEventListener('click', () => {
+      config = { ...defaultConfig };
+      posFilter.reset(); rotFilter.reset(); scaleFilter.reset();
+      syncUI();
+      showToast("รีเซ็ตเป็นค่าเริ่มต้นแล้ว");
+    });
+
+    // Copy JSON
+    document.getElementById('btn-copy-json').addEventListener('click', async () => {
+      const text = JSON.stringify(config, null, 2);
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast("คัดลอก JSON เรียบร้อยแล้ว!");
+      } catch (err) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast("คัดลอก JSON เรียบร้อยแล้ว!");
+      }
+    });
+
+    // Download JSON
+    document.getElementById('btn-download-json').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gatorz_ar_config_${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("ดาวน์โหลดไฟล์ JSON เรียบร้อย");
+    });
+
+    // --- Face Oval Indices for 3D Skull Occluder Boundary ---
+    const FACE_OVAL = [
+      10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
+      397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
+      172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109
+    ];
+
+    // --- Three.js & MediaPipe Pipeline ---
+    let renderer, scene, camera;
+    let glassesGroup, glassesModel;
+    let frontFrameMesh = null, leftArmMesh = null, rightArmMesh = null;
+    let debugAnchorGroup, debugBridgeMesh, debugLeftEarMesh, debugRightEarMesh, debugEarLines;
+    let occluderMesh, occluderGeometry, occluderMaterial;
+    let faceLandmarker = null;
+    let isTrackingRunning = false;
+    let lastVideoTime = -1;
+    let frameCount = 0;
+    let lastFpsTime = performance.now();
+
+    // Reusable math vectors for zero-GC per-frame temple hinge occlusion
+    const tempLeftHinge = new THREE.Vector3();
+    const tempRightHinge = new THREE.Vector3();
+
+    // Dynamic Ear-Depth Clipping Plane: Slices off excess geometry extending deeper than the ears
+    const earClipPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 100000);
+
+    function applyMaterials() {
+      if (frontFrameMesh && leftArmMesh && rightArmMesh) {
+        frontFrameMesh.material.wireframe = config.wireframe;
+        leftArmMesh.material.wireframe = config.wireframe;
+        rightArmMesh.material.wireframe = config.wireframe;
+
+        frontFrameMesh.material.needsUpdate = true;
+        leftArmMesh.material.needsUpdate = true;
+        rightArmMesh.material.needsUpdate = true;
+      } else if (glassesModel) {
+        glassesModel.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.material.wireframe = config.wireframe;
+            child.material.depthTest = true;
+            child.material.depthWrite = true;
+            child.material.polygonOffset = true;
+            child.material.polygonOffsetFactor = -1.5;
+            child.material.polygonOffsetUnits = -3.0;
+            child.material.clippingPlanes = [earClipPlane];
+            child.material.clipShadows = true;
+            child.material.needsUpdate = true;
+          }
+        });
+      }
+      if (debugAnchorGroup) {
+        debugAnchorGroup.visible = config.showAnchor;
+      }
+      if (occluderMesh && occluderMaterial) {
+        occluderMesh.visible = config.occluderActive;
+        if (config.debugOccluder) {
+          occluderMaterial.colorWrite = true;
+          occluderMaterial.wireframe = true;
+          occluderMaterial.color.setHex(0x00f2fe);
+          occluderMaterial.needsUpdate = true;
+        } else {
+          occluderMaterial.colorWrite = false;
+          occluderMaterial.wireframe = false;
+          occluderMaterial.needsUpdate = true;
+        }
+      }
+    }
+
+    function initThree() {
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvasEl,
+        alpha: true,
+        antialias: true,
+        powerPreference: 'high-performance'
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.localClippingEnabled = true; // Enables GPU clipping planes
+
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
+      camera.position.set(0, 0, 0);
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
+      scene.add(ambientLight);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+      keyLight.position.set(0, 2, 2);
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0xa5b4fc, 1.2);
+      fillLight.position.set(-2, -1, 1);
+      scene.add(fillLight);
+
+      // Glasses Group
+      glassesGroup = new THREE.Group();
+      glassesGroup.visible = false;
+      scene.add(glassesGroup);
+
+      // Visual 3-Point Ear & Bridge Tracking Anchors
+      debugAnchorGroup = new THREE.Group();
+      debugAnchorGroup.visible = config.showAnchor;
+      scene.add(debugAnchorGroup);
+
+      // 1. Nose Bridge Anchor: Landmark 168 (Emerald Green)
+      const bridgeGeom = new THREE.SphereGeometry(0.007, 16, 16);
+      const bridgeMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+      debugBridgeMesh = new THREE.Mesh(bridgeGeom, bridgeMat);
+      debugAnchorGroup.add(debugBridgeMesh);
+
+      // 2. Left Ear Tragus Anchor: Landmark 454 (Cyan)
+      const leftEarGeom = new THREE.SphereGeometry(0.009, 16, 16);
+      const leftEarMat = new THREE.MeshBasicMaterial({ color: 0x00f2fe });
+      debugLeftEarMesh = new THREE.Mesh(leftEarGeom, leftEarMat);
+      debugAnchorGroup.add(debugLeftEarMesh);
+
+      // 3. Right Ear Tragus Anchor: Landmark 234 (Magenta)
+      const rightEarGeom = new THREE.SphereGeometry(0.009, 16, 16);
+      const rightEarMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e });
+      debugRightEarMesh = new THREE.Mesh(rightEarGeom, rightEarMat);
+      debugAnchorGroup.add(debugRightEarMesh);
+
+      // 4. Ear-to-Bridge Tracking Rays (Yellow - 5 anatomical line segments)
+      const linePositions = new Float32Array(5 * 2 * 3); // 5 line segments (10 points = 30 floats)
+      const lineGeom = new THREE.BufferGeometry();
+      lineGeom.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+      const lineMat = new THREE.LineBasicMaterial({ color: 0xfacc15, linewidth: 2 });
+      debugEarLines = new THREE.LineSegments(lineGeom, lineMat);
+      debugAnchorGroup.add(debugEarLines);
+
+      window.addEventListener('resize', onWindowResize);
+    }
+
+    function onWindowResize() {
+      if (!camera || !renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // --- Build 3D Head Occluder Geometry ---
+    async function initHeadOccluder() {
+      let faceTriangles = [];
+      try {
+        const resp = await fetch('/models/face_mesh_triangles.json');
+        faceTriangles = await resp.json();
+      } catch (e) {
+        console.warn("Could not load face_mesh_triangles.json", e);
+      }
+
+      // Total vertices:
+      // 0..467: Front face mesh (468 vertices)
+      // 468..503: Extruded lateral skull & ear oval (36 vertices)
+      // 504: Rear Skull Center Apex (closes rear of skull)
+      // 505..508: Left Ear Pinna Occluder Flap (4 vertices)
+      // 509..512: Right Ear Pinna Occluder Flap (4 vertices)
+      const totalVertices = 468 + FACE_OVAL.length + 1 + 8;
+      const positions = new Float32Array(totalVertices * 3);
+      const indices = [...faceTriangles];
+
+      const backOvalStart = 468;
+      const backCenterIdx = 468 + FACE_OVAL.length; // 504
+
+      // Extrude side quads connecting front oval to back oval & rear closure
+      for (let i = 0; i < FACE_OVAL.length; i++) {
+        const next = (i + 1) % FACE_OVAL.length;
+        const frontA = FACE_OVAL[i];
+        const frontB = FACE_OVAL[next];
+        const backA = backOvalStart + i;
+        const backB = backOvalStart + next;
+
+        indices.push(frontA, backA, frontB);
+        indices.push(frontB, backA, backB);
+        indices.push(backA, backCenterIdx, backB); // Closes rear skull
+      }
+
+      // Left Ear Pinna Occluder Flap (505..508)
+      const leftEarStart = 505;
+      indices.push(
+        leftEarStart, leftEarStart + 1, leftEarStart + 2,
+        leftEarStart, leftEarStart + 2, leftEarStart + 3
+      );
+
+      // Right Ear Pinna Occluder Flap (509..512)
+      const rightEarStart = 509;
+      indices.push(
+        rightEarStart, rightEarStart + 1, rightEarStart + 2,
+        rightEarStart, rightEarStart + 2, rightEarStart + 3
+      );
+
+      occluderGeometry = new THREE.BufferGeometry();
+      occluderGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      occluderGeometry.setIndex(indices);
+
+      // Depth-Only Material with DoubleSide for foolproof depth testing from any head angle
+      occluderMaterial = new THREE.MeshBasicMaterial({
+        colorWrite: config.debugOccluder,
+        depthWrite: true,
+        side: THREE.DoubleSide,
+        wireframe: config.debugOccluder,
+        color: 0x00f2fe
+      });
+
+      occluderMesh = new THREE.Mesh(occluderGeometry, occluderMaterial);
+      occluderMesh.frustumCulled = false;
+      occluderMesh.renderOrder = 2; // Renders AFTER front frame (1), but BEFORE arms (3)
+      occluderMesh.visible = config.occluderActive;
+      scene.add(occluderMesh);
+
+      console.log("[Occluder] 3D Anatomical Head Occluder with Ear Flaps initialized with 513 vertices!");
+    }
+
+    function splitGlassesGeometry(originalMesh) {
+      const geom = originalMesh.geometry;
+      const posAttr = geom.attributes.position;
+      const indexAttr = geom.index;
+      const numIndices = indexAttr.count;
+
+      const frontIndices = [];
+      const leftIndices = [];
+      const rightIndices = [];
+
+      for (let i = 0; i < numIndices; i += 3) {
+        const i0 = indexAttr.getX(i);
+        const i1 = indexAttr.getX(i + 1);
+        const i2 = indexAttr.getX(i + 2);
+
+        const z0 = posAttr.getZ(i0), z1 = posAttr.getZ(i1), z2 = posAttr.getZ(i2);
+        const x0 = posAttr.getX(i0), x1 = posAttr.getX(i1), x2 = posAttr.getX(i2);
+
+        const avgZ = (z0 + z1 + z2) / 3.0;
+        const avgX = (x0 + x1 + x2) / 3.0;
+
+        if (avgZ >= -0.025) {
+          frontIndices.push(i0, i1, i2);
+        } else if (avgX < 0) {
+          leftIndices.push(i0, i1, i2);
+        } else {
+          rightIndices.push(i0, i1, i2);
+        }
+      }
+
+      // 1. Front Frame: Rendered FIRST with renderOrder = 1 and robust negative polygon offset.
+      // This guarantees the front frame and lenses are drawn into the color buffer BEFORE the occluder,
+      // completely immunizing the nose bridge from any skin clipping or cutout artifacts!
+      const frontGeom = geom.clone();
+      frontGeom.setIndex(frontIndices);
+      const frontMat = originalMesh.material.clone();
+      frontMat.polygonOffset = true;
+      frontMat.polygonOffsetFactor = -5.0;
+      frontMat.polygonOffsetUnits = -10.0;
+      frontMat.clippingPlanes = []; // Front frame is NEVER clipped by ear plane
+      frontMat.wireframe = config.wireframe;
+      frontFrameMesh = new THREE.Mesh(frontGeom, frontMat);
+      frontFrameMesh.name = "FrontFrame";
+      frontFrameMesh.renderOrder = 1; // Renders FIRST!
+
+      // 2. Left Temple Arm (Screen-Left / Local X < 0)
+      const leftGeom = geom.clone();
+      leftGeom.setIndex(leftIndices);
+      const leftMat = originalMesh.material.clone();
+      leftMat.polygonOffset = false;
+      leftMat.clippingPlanes = [earClipPlane];
+      leftMat.clipShadows = true;
+      leftMat.wireframe = config.wireframe;
+      leftArmMesh = new THREE.Mesh(leftGeom, leftMat);
+      leftArmMesh.name = "LeftArm";
+      leftArmMesh.renderOrder = 3; // Renders AFTER occluder to be occluded by skull/ears
+
+      // 3. Right Temple Arm (Screen-Right / Local X > 0)
+      const rightGeom = geom.clone();
+      rightGeom.setIndex(rightIndices);
+      const rightMat = originalMesh.material.clone();
+      rightMat.polygonOffset = false;
+      rightMat.clippingPlanes = [earClipPlane];
+      rightMat.clipShadows = true;
+      rightMat.wireframe = config.wireframe;
+      rightArmMesh = new THREE.Mesh(rightGeom, rightMat);
+      rightArmMesh.name = "RightArm";
+      rightArmMesh.renderOrder = 3; // Renders AFTER occluder to be occluded by skull/ears
+
+      const group = new THREE.Group();
+      group.name = "SeparatedGlassesModel";
+      group.add(frontFrameMesh);
+      group.add(leftArmMesh);
+      group.add(rightArmMesh);
+
+      return group;
+    }
+
+    async function loadGlassesModel() {
+      const gltfLoader = new GLTFLoader();
+      const modelUrl = `/models/glasses/gatorz_revenant.glb?t=${Date.now()}`;
+
+      function setupModel(gltf) {
+        let origMesh = null;
+        gltf.scene.traverse((child) => {
+          if (child.isMesh && !origMesh) origMesh = child;
+        });
+
+        if (origMesh) {
+          glassesModel = splitGlassesGeometry(origMesh);
+        } else {
+          glassesModel = gltf.scene;
+        }
+
+        glassesModel.position.set(0, -0.0055, 0);
+        applyMaterials();
+        glassesGroup.add(glassesModel);
+        console.log("[Three.js] Gatorz Revenant 3D Model Loaded & Calibrated (-0.0055m) with Sub-Mesh Separation!");
+      }
+
+      return new Promise((resolve, reject) => {
+        gltfLoader.load(modelUrl, (gltf) => {
+          setupModel(gltf);
+          resolve();
+        }, undefined, (err) => {
+          console.warn("Primary path failed, trying relative path...", err);
+          gltfLoader.load(`./models/glasses/gatorz_revenant.glb`, (gltf) => {
+            setupModel(gltf);
+            resolve();
+          }, undefined, reject);
+        });
+      });
+    }
+
+    async function initMediaPipe() {
+      statusText.innerText = "กำลังดาวน์โหลดโมเดล MediaPipe...";
+
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+      );
+
+      faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+          delegate: "GPU"
+        },
+        runningMode: "VIDEO",
+        outputFacialTransformationMatrixes: true,
+        numFaces: 1,
+        minFaceDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      console.log("[MediaPipe] FaceLandmarker initialized with 3-Point Tracking & Metric Matrix!");
+    }
+
+    async function startCamera() {
+      statusText.innerText = "กำลังขออนุญาตใช้งานกล้อง...";
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+
+      videoEl.srcObject = stream;
+      await new Promise((resolve) => {
+        videoEl.onloadedmetadata = () => {
+          videoEl.play();
+          resolve();
+        };
+      });
+
+      console.log(`[Camera] Video stream active: ${videoEl.videoWidth}x${videoEl.videoHeight}`);
+    }
+
+    // Reusable Math objects
+    const tempMatrix = new THREE.Matrix4();
+    const tempPos = new THREE.Vector3();
+    const tempQuat = new THREE.Quaternion();
+    const tempScale = new THREE.Vector3();
+    const tempEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+    function landmarkTo3D(lm) {
+      const screenX = config.mirrorCamera ? (1.0 - lm.x) : lm.x;
+      const screenY = lm.y;
+
+      const ndcX = (screenX - 0.5) * 2;
+      const ndcY = -(screenY - 0.5) * 2;
+
+      // Depth scaling matching human face scale
+      const depthZ = -0.55 - (lm.z || 0) * 0.9;
+
+      const fovRad = THREE.MathUtils.degToRad(camera.fov);
+      const viewH = 2 * Math.tan(fovRad / 2) * Math.abs(depthZ);
+      const viewW = viewH * camera.aspect;
+
+      return new THREE.Vector3(
+        ndcX * (viewW / 2),
+        ndcY * (viewH / 2),
+        depthZ
+      );
+    }
+
+    function processFrame() {
+      if (!isTrackingRunning) return;
+
+      const now = performance.now();
+
+      frameCount++;
+      if (now - lastFpsTime >= 1000) {
+        fpsCounter.innerText = `${frameCount} FPS`;
+        frameCount = 0;
+        lastFpsTime = now;
+      }
+
+      if (videoEl.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && videoEl.currentTime !== lastVideoTime) {
+        lastVideoTime = videoEl.currentTime;
+
+        const results = faceLandmarker.detectForVideo(videoEl, now);
+
+        if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+          glassesGroup.visible = true;
+
+          const landmarks = results.faceLandmarks[0];
+
+          // Key Anatomical Landmarks: Bridge (168), Forehead (10), Chin (152)
+          const lmBridge = landmarks[168];
+          const lmForehead = landmarks[10];
+          const lmChin = landmarks[152];
+          const pBridge = landmarkTo3D(lmBridge);
+          const pForehead = landmarkTo3D(lmForehead);
+          const pChin = landmarkTo3D(lmChin);
+
+          // Ear Tragus Landmarks: 454 (Left Ear), 234 (Right Ear)
+          const pEarLeftRaw = landmarkTo3D(landmarks[454]);
+          const pEarRightRaw = landmarkTo3D(landmarks[234]);
+
+          // Dynamically sort ears so pScreenEarLeft is screen-left (X min) and pScreenEarRight is screen-right (X max)
+          let pScreenEarLeft = pEarLeftRaw.clone();
+          let pScreenEarRight = pEarRightRaw.clone();
+          if (pScreenEarLeft.x > pScreenEarRight.x) {
+            pScreenEarLeft = pEarRightRaw.clone();
+            pScreenEarRight = pEarLeftRaw.clone();
+          }
+
+          const pEarMid = new THREE.Vector3().addVectors(pScreenEarLeft, pScreenEarRight).multiplyScalar(0.5);
+
+          // === 1. RIGID 3D BASIS VECTORS: FULL CRANIAL + TRANSVERSE EAR AXIS ===
+          // vecX: Transverse Ear-to-Ear Vector (+X points to Screen-Right)
+          const vecX = new THREE.Vector3().subVectors(pScreenEarRight, pScreenEarLeft).normalize();
+
+          // vecCranialUp: Anatomical vertical axis from Chin (152) to Forehead (10)
+          const vecCranialUp = new THREE.Vector3().subVectors(pForehead, pChin).normalize();
+
+          // vecZ: Normal facing OUT towards camera from cross product of transverse and vertical axes
+          let vecZ = new THREE.Vector3().crossVectors(vecX, vecCranialUp).normalize();
+
+          // vecY: True orthogonal cranial up vector (+Y)
+          let vecY = new THREE.Vector3().crossVectors(vecZ, vecX).normalize();
+
+          // Re-orthogonalize vecZ to ensure a strict 90-degree Cartesian coordinate frame
+          vecZ = new THREE.Vector3().crossVectors(vecX, vecY).normalize();
+
+          // === ELEVATE EAR ANCHORS TO OTOBASION SUPERIUS (EAR CREST / ROOT) ===
+          // Real glasses physically rest on Otobasion Superius (the upper ear root where the ear connects to skull),
+          // which is ~16mm superior (+vecY) relative to the tragus (ear canal / landmarks 234 & 454).
+          const earCrestLift = 0.016; // 16mm above tragus along cranial up
+          const pEarCrestLeft = pScreenEarLeft.clone().addScaledVector(vecY, earCrestLift);
+          const pEarCrestRight = pScreenEarRight.clone().addScaledVector(vecY, earCrestLift);
+          const pEarCrestMid = new THREE.Vector3().addVectors(pEarCrestLeft, pEarCrestRight).multiplyScalar(0.5);
+
+          // Base Face Orientation Quaternion
+          const rotBasis = new THREE.Matrix4().makeBasis(vecX, vecY, vecZ);
+          const faceQuat = new THREE.Quaternion().setFromRotationMatrix(rotBasis);
+
+          // Local User Offsets (Pitch, Yaw, Roll) strictly relative to the face's local coordinate frame!
+          const offsetEuler = new THREE.Euler(
+            THREE.MathUtils.degToRad(config.pitchOffset) * (config.invertPitch ? -1 : 1),
+            THREE.MathUtils.degToRad(config.yawOffset)   * (config.invertYaw   ? -1 : 1),
+            THREE.MathUtils.degToRad(config.rollOffset)  * (config.invertRoll  ? -1 : 1),
+            'YXZ'
+          );
+          const offsetQuat = new THREE.Quaternion().setFromEuler(offsetEuler);
+
+          // Target Orientation: Face rotation rigidly composed with local offsets
+          const targetQuat = faceQuat.clone().multiply(offsetQuat);
+
+          // === 2. POSITION: RESTING ON NASAL BRIDGE + FRAME CLEARANCE (IN FACE LOCAL COORDINATES) ===
+          const userOffsetX = (config.offsetX / 1000.0) * (config.flipX ? -1 : 1);
+          const userOffsetY = (config.offsetY / 1000.0) * (config.flipY ? -1 : 1);
+          const userOffsetZ = config.offsetZ / 1000.0;
+          const frameClearance = config.frameClearanceMm / 1000.0; // Frame forward clearance out of skin
+
+          const targetPos = pBridge.clone()
+            .addScaledVector(vecX, userOffsetX)
+            .addScaledVector(vecY, userOffsetY)
+            .addScaledVector(vecZ, userOffsetZ + frameClearance);
+
+          // === 3. DYNAMIC EAR-ANCHORED TEMPLE ARM SCALING ===
+          // Ear-to-Ear Span (Human ear span ~ 138-144mm, model width 142mm)
+          const earSpan = pEarCrestLeft.distanceTo(pEarCrestRight);
+          const targetScaleX = (earSpan / 0.142) * config.scaleMultiplier;
+          const targetScaleY = targetScaleX;
+
+          // Distance from nasal bridge directly to the ear crests (Otobasion Superius)
+          const bridgeToEarDist = pBridge.distanceTo(pEarCrestMid);
+
+          // Gatorz Revenant model arm bend is at local Z = -0.098m.
+          // Scaling targetScaleZ = (bridgeToEarDist / 0.098) locks the ear bend EXACTLY on Otobasion Superius!
+          const naturalScaleZ = (bridgeToEarDist / 0.098) * config.scaleMultiplier;
+          const targetScaleZ = THREE.MathUtils.clamp(naturalScaleZ, 0.80, 1.35);
+
+          // === 4. UPDATE 3D HEAD & EAR OCCLUDER GEOMETRY ===
+          if (occluderGeometry && config.occluderActive) {
+            const posAttr = occluderGeometry.attributes.position;
+            const skullDepthMeters = (config.occluderDepthCm / 100.0);
+
+            let sumX = 0, sumY = 0, sumZ = 0;
+
+            // Front 468 vertices: Inset 20mm into skin so nose bridge of occluder never clips front frame
+            const insetSkin = 0.020;
+            for (let i = 0; i < 468; i++) {
+              const p = landmarkTo3D(landmarks[i]);
+              posAttr.setXYZ(
+                i,
+                p.x - (vecZ.x * insetSkin),
+                p.y - (vecZ.y * insetSkin),
+                p.z - (vecZ.z * insetSkin)
+              );
+              sumX += p.x; sumY += p.y; sumZ += p.z;
+            }
+
+            const centerX = sumX / 468;
+            const centerY = sumY / 468;
+            const centerZ = sumZ / 468;
+
+            // Extruded 36 lateral ear/skull vertices: extrude each perimeter vertex backwards along -vecZ
+            const backOvalStart = 468;
+            for (let i = 0; i < FACE_OVAL.length; i++) {
+              const pFront = landmarkTo3D(landmarks[FACE_OVAL[i]]);
+              const dx = (pFront.x - centerX) * 0.08;
+              const dy = (pFront.y - centerY) * 0.08;
+              posAttr.setXYZ(
+                backOvalStart + i,
+                pFront.x + dx - (vecZ.x * skullDepthMeters),
+                pFront.y + dy - (vecZ.y * skullDepthMeters),
+                pFront.z - (vecZ.z * skullDepthMeters)
+              );
+            }
+
+            // Rear Skull Center Apex (at occipital back of head, 12cm behind ear midpoint)
+            const backCenterIdx = 468 + FACE_OVAL.length;
+            posAttr.setXYZ(
+              backCenterIdx,
+              pEarCrestMid.x - (vecZ.x * 0.12),
+              pEarCrestMid.y - (vecZ.y * 0.12),
+              pEarCrestMid.z - (vecZ.z * 0.12)
+            );
+
+            // Left Ear Pinna Occluder Flap (505..508)
+            // Projects 22mm outward (-vecX) and 15-22mm backward (-vecZ) around left ear pinna
+            posAttr.setXYZ(505, pEarCrestLeft.x, pEarCrestLeft.y, pEarCrestLeft.z);
+            posAttr.setXYZ(
+              506,
+              pEarCrestLeft.x - (vecX.x * 0.022) - (vecZ.x * 0.015),
+              pEarCrestLeft.y - (vecX.y * 0.022) - (vecZ.y * 0.015),
+              pEarCrestLeft.z - (vecX.z * 0.022) - (vecZ.z * 0.015)
+            );
+            posAttr.setXYZ(
+              507,
+              pScreenEarLeft.x - (vecX.x * 0.020) - (vecZ.x * 0.022),
+              pScreenEarLeft.y - (vecX.y * 0.020) - (vecZ.y * 0.022),
+              pScreenEarLeft.z - (vecX.z * 0.020) - (vecZ.z * 0.022)
+            );
+            posAttr.setXYZ(
+              508,
+              pScreenEarLeft.x - (vecY.x * 0.012),
+              pScreenEarLeft.y - (vecY.y * 0.012),
+              pScreenEarLeft.z - (vecY.z * 0.012)
+            );
+
+            // Right Ear Pinna Occluder Flap (509..512)
+            // Projects 22mm outward (+vecX) and 15-22mm backward (-vecZ) around right ear pinna
+            posAttr.setXYZ(509, pEarCrestRight.x, pEarCrestRight.y, pEarCrestRight.z);
+            posAttr.setXYZ(
+              510,
+              pEarCrestRight.x + (vecX.x * 0.022) - (vecZ.x * 0.015),
+              pEarCrestRight.y + (vecX.y * 0.022) - (vecZ.y * 0.015),
+              pEarCrestRight.z + (vecX.z * 0.022) - (vecZ.z * 0.015)
+            );
+            posAttr.setXYZ(
+              511,
+              pScreenEarRight.x + (vecX.x * 0.020) - (vecZ.x * 0.022),
+              pScreenEarRight.y + (vecX.y * 0.020) - (vecZ.y * 0.022),
+              pScreenEarRight.z + (vecX.z * 0.020) - (vecZ.z * 0.022)
+            );
+            posAttr.setXYZ(
+              512,
+              pScreenEarRight.x - (vecY.x * 0.012),
+              pScreenEarRight.y - (vecY.y * 0.012),
+              pScreenEarRight.z - (vecY.z * 0.012)
+            );
+
+            posAttr.needsUpdate = true;
+            occluderGeometry.computeBoundingSphere();
+          }
+
+          // === 5. APPLY POSITION, ROTATION & SCALE TO GLASSES ===
+          let finalPos = targetPos;
+          let finalQuat = targetQuat;
+          let finalScaleX = targetScaleX;
+          let finalScaleZ = targetScaleZ;
+
+          if (config.useOneEuro) {
+            finalPos = posFilter.filter(targetPos, now);
+            finalScaleX = scaleFilter.filter(targetScaleX, now);
+            finalScaleZ = scaleZFilter.filter(targetScaleZ, now);
+          }
+
+          glassesGroup.position.copy(finalPos);
+          glassesGroup.quaternion.copy(finalQuat);
+          glassesGroup.scale.set(finalScaleX, finalScaleX, finalScaleZ);
+          glassesGroup.updateMatrixWorld(true);
+
+          // === 6. GPU EAR-DEPTH CLIPPING PLANE (ตัดเฉพาะส่วนปลายขาแว่นที่ยาวเกินหลังหู) ===
+          // Allows full ear hook to curve down behind the ear, clipping anything past 35mm behind the retroauricular fold
+          const earCutPoint = pEarCrestMid.clone().addScaledVector(vecZ, -0.035);
+          earClipPlane.setFromNormalAndCoplanarPoint(vecZ, earCutPoint);
+
+          // === 7. FOOLPROOF PHYSICAL TEMPLE ARM OCCLUSION (ซ่อนขาแว่นด้านในที่อยู่หลังกะโหลก 100%) ===
+          // Calculate world positions of the left and right temple hinges in camera space
+          tempLeftHinge.set(-0.065, 0, -0.05);
+          glassesGroup.localToWorld(tempLeftHinge);
+
+          tempRightHinge.set(0.065, 0, -0.05);
+          glassesGroup.localToWorld(tempRightHinge);
+
+          const distLeft = camera.position.distanceTo(tempLeftHinge);
+          const distRight = camera.position.distanceTo(tempRightHinge);
+          const armDistDelta = distLeft - distRight; // > 0 means left arm is further (behind head)
+
+          // Threshold: 0.008m (~8mm difference in camera distance corresponds to ~3.3° head turn)
+          if (armDistDelta > 0.008) {
+            // Left arm is further away (behind the skull) -> HIDE Left Arm, SHOW Right Arm!
+            if (leftArmMesh) leftArmMesh.visible = false;
+            if (rightArmMesh) rightArmMesh.visible = true;
+          } else if (armDistDelta < -0.008) {
+            // Right arm is further away (behind the skull) -> HIDE Right Arm, SHOW Left Arm!
+            if (rightArmMesh) rightArmMesh.visible = false;
+            if (leftArmMesh) leftArmMesh.visible = true;
+          } else {
+            // Facing camera directly (|armDistDelta| <= 8mm) -> Both arms visible!
+            if (leftArmMesh) leftArmMesh.visible = true;
+            if (rightArmMesh) rightArmMesh.visible = true;
+          }
+
+          // Extract Physical Euler Angles from faceQuat for HUD display
+          tempEuler.setFromQuaternion(faceQuat, 'YXZ');
+          const physicalTurnDeg = THREE.MathUtils.radToDeg(tempEuler.y);
+          const physicalPitchDeg = THREE.MathUtils.radToDeg(tempEuler.x);
+
+          // === 8. VISUAL EAR & BRIDGE TRACKING ANCHORS ===
+          if (config.showAnchor && debugAnchorGroup) {
+            debugBridgeMesh.position.copy(pBridge);
+            debugLeftEarMesh.position.copy(pEarCrestLeft);
+            debugRightEarMesh.position.copy(pEarCrestRight);
+
+            const posArr = debugEarLines.geometry.attributes.position.array;
+            // Line 1: Bridge -> Left Ear Crest
+            posArr[0] = pBridge.x; posArr[1] = pBridge.y; posArr[2] = pBridge.z;
+            posArr[3] = pEarCrestLeft.x; posArr[4] = pEarCrestLeft.y; posArr[5] = pEarCrestLeft.z;
+            // Line 2: Bridge -> Right Ear Crest
+            posArr[6] = pBridge.x; posArr[7] = pBridge.y; posArr[8] = pBridge.z;
+            posArr[9] = pEarCrestRight.x; posArr[10] = pEarCrestRight.y; posArr[11] = pEarCrestRight.z;
+            // Line 3: Left Ear Crest -> Right Ear Crest (Transverse Ear Crest Axis)
+            posArr[12] = pEarCrestLeft.x; posArr[13] = pEarCrestLeft.y; posArr[14] = pEarCrestLeft.z;
+            posArr[15] = pEarCrestRight.x; posArr[16] = pEarCrestRight.y; posArr[17] = pEarCrestRight.z;
+            // Line 4: Left Tragus -> Left Ear Crest (16mm Anatomical Lift)
+            posArr[18] = pScreenEarLeft.x; posArr[19] = pScreenEarLeft.y; posArr[20] = pScreenEarLeft.z;
+            posArr[21] = pEarCrestLeft.x; posArr[22] = pEarCrestLeft.y; posArr[23] = pEarCrestLeft.z;
+            // Line 5: Right Tragus -> Right Ear Crest (16mm Anatomical Lift)
+            posArr[24] = pScreenEarRight.x; posArr[25] = pScreenEarRight.y; posArr[26] = pScreenEarRight.z;
+            posArr[27] = pEarCrestRight.x; posArr[28] = pEarCrestRight.y; posArr[29] = pEarCrestRight.z;
+            debugEarLines.geometry.attributes.position.needsUpdate = true;
+            debugAnchorGroup.visible = true;
+          } else if (debugAnchorGroup) {
+            debugAnchorGroup.visible = false;
+          }
+
+          // Update Status HUD with live Ear Distance, Yaw Turn, and Pitch
+          statusDot.className = "status-dot active";
+          const armStatus = (leftArmMesh?.visible && rightArmMesh?.visible) ? "Both Arms" : (leftArmMesh?.visible ? "Left Arm" : "Right Arm");
+          statusText.innerText = `🎧 Ear Crest Locked: Dist ${(bridgeToEarDist * 100).toFixed(1)}cm | Turn: ${physicalTurnDeg.toFixed(1)}° | Pitch: ${physicalPitchDeg.toFixed(1)}° (${armStatus})`;
+
+        } else {
+          statusDot.className = "status-dot tracking";
+          statusText.innerText = "กำลังค้นหาใบหน้า...";
+          glassesGroup.visible = false;
+        }
+      }
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(processFrame);
+    }
+
+    async function startAR() {
+      try {
+        startBtn.innerHTML = `<span>⏳ กำลังโหลด 3D Model & Head Occluder...</span>`;
+
+        initThree();
+        await loadGlassesModel();
+        await initHeadOccluder();
+        await initMediaPipe();
+        await startCamera();
+
+        syncUI();
+        startOverlay.style.display = 'none';
+        isTrackingRunning = true;
+        requestAnimationFrame(processFrame);
+
+        showToast("ระบบ 3-Point Tracking & Head Occlusion พร้อมใช้งาน!");
+      } catch (err) {
+        console.error("Initialization Error:", err);
+        startBtn.innerHTML = `<span>📷 ลองใหม่อีกครั้ง</span>`;
+        showError(`<strong>เกิดข้อผิดพลาดในการเริ่มระบบ:</strong> ${err.message}<br><br>• โปรดตรวจสอบว่าเข้าผ่าน <code>https://</code><br>• กด <strong>Allow</strong> เมื่อเบราว์เซอร์ขอใช้กล้อง`);
+      }
+    }
+
+    startBtn.addEventListener('click', startAR);
+
+    btnSnapshot.addEventListener('click', () => {
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = videoEl.videoWidth || window.innerWidth;
+      snapCanvas.height = videoEl.videoHeight || window.innerHeight;
+      const ctx = snapCanvas.getContext('2d');
+
+      ctx.save();
+      if (config.mirrorCamera) {
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoEl, -snapCanvas.width, 0, snapCanvas.width, snapCanvas.height);
+      } else {
+        ctx.drawImage(videoEl, 0, 0, snapCanvas.width, snapCanvas.height);
+      }
+      ctx.restore();
+
+      ctx.drawImage(canvasEl, 0, 0);
+
+      const a = document.createElement('a');
+      a.download = `gatorz_revenant_snap_${Date.now()}.png`;
+      a.href = snapCanvas.toDataURL('image/png');
+      a.click();
+      showToast("บันทึกภาพถ่าย Snapshot แล้ว!");
+    });
+
+    syncUI();
+  </script>
+</body>
+</html>

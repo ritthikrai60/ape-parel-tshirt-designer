@@ -1,34 +1,42 @@
-# Final Sentinel Handoff Report — VICTORY CONFIRMED
+# Project Sentinel Handoff Report: Milestone 11 — Rotational Inertia & Cloth Sway Physics
 
-## Observation
-- Received comprehensive requirements for `ape-parel` apparel design and production marketplace across R1 (2D/3D Interactive Design Studio), R2 (Authoritative Pricing Engine & Checkout), R3 (Auditable Royalty Ledger & Supplier Specs), and R4 (Multi-Role Portals & Marketplace).
-- All acceptance criteria verified:
-  - Exact canonical benchmark: 1 unit APX-HVY-001 (150) + DTG (80) + Packaging (15) + Shipping (40) + Artwork Licenses (40 + 60 + 25 = 125) = **THB 410**.
-  - Server-side fee recalculation and anti-tamper defenses reject manipulated client inputs.
-  - Atomic transactions (`prisma.$transaction`) write immutable `RoyaltyObligation` and `RoyaltyLedgerEntry` records with clean rollbacks on failure.
-  - 2D Canvas centered on transparent background with authentic colorways (`#131718` Ink Black, `#FFFFFF` Optic White, `#EBE7DF` Paper Beige, `#D4B996` Warm Kraft) and no intrusive bounding boxes.
-  - 3D Viewport in Three.js loading `public/models/tshirt.obj` (1,490 vertices, 2,680 faces) with independent Front (`u ∈ [0.040, 0.460]`) and Back (`u ∈ [0.540, 0.960]`) texture mapping, 8% non-overlapping buffer margin, and unmirrored rear orientation.
-  - Multi-role portals implemented: Public Marketplace (`/marketplace`), Creator Storefronts (`/creators/[slug]`), Creator Dashboard (`/creator/dashboard`), Supplier Dashboard (`/supplier/dashboard`), Customer Order Tracker (`/account/orders/[id]`).
-  - Strict TypeScript check (`npx tsc --noEmit`): 0 errors.
-  - Vitest test suite (`npm test`): 268/268 tests passing across 13 test suites.
-  - Next.js production build (`npm run build`): Clean exit code 0.
+## 1. Observation
+- **User Request**: Implement a realistic rotational inertia and cloth sway physics system in the ape-parel 3D design studio (`GarmentPreview3D.tsx`) where rotating the garment around the left-right axis induces natural inertial cloth lag and spring-damper settling without compromising 2D/3D print blueprint measurement accuracy.
+- **Routing Decision**: SWE Light (`teamwork_preview_swe`) per the explicit signal: "This is a single self-contained feature; keep it small and focused."
+- **Execution**: Orchestrator `swe_6` conducted a 4-stage sequential SWE Light loop: 1 implementer round (`implementer_r1`) and 3 adversarial review rounds (`reviewer_r1`, `reviewer_r2`, `reviewer_r3`).
+- **Independent Victory Audit**: Spawned `victory_auditor_10` (`6fde6368-fe73-4cb9-9467-8bd0bbdb9957`) for a blocking 3-phase audit (Timeline, Anti-cheating integrity, Clean independent execution).
+- **Independent Test Execution**:
+  - Dedicated physics test suite: 40/40 tests passed (`src/lib/__tests__/garment_physics.test.ts`, exit code 0)
+  - Full repository test suite: 586/586 tests passed across 24 test files (`npm test`, exit code 0, 0 regressions)
+  - TypeScript compilation: 0 type errors (`npx tsc --noEmit`, exit code 0)
+  - Next.js production build: 24/24 static and dynamic routes compiled successfully (`npm run build`, exit code 0)
+- **Verdict**: **VICTORY CONFIRMED**.
 
-## Logic Chain
-1. Recorded user request in `ORIGINAL_REQUEST.md`.
-2. Evaluated Routing Decision Table: Routed full SWE marketplace task to General path (`teamwork_preview_orchestrator`).
-3. Managed orchestrator lifecycle across generations with continuous liveness and progress crons.
-4. Orchestrator completed milestones M1 through M5 through multi-agent gating (reviewers, challengers, forensic auditors).
-5. Orchestrator claimed project completion.
-6. Sentinel blocked completion and spawned independent `teamwork_preview_victory_auditor` with zero shared context from implementation swarm.
-7. Victory Auditor conducted 3-phase audit (Timeline, Cheating Forensics, Independent Test Execution) and returned **VICTORY CONFIRMED**.
-8. Executed mandatory cleanup: killed progress and liveness crons, killed all active subagents (`kill_all`).
+## 2. Logic Chain
+1. **Dynamic Cloth Physics Modeling (`src/lib/garmentPhysics.ts`)**:
+   - Rotational angular velocity ($\omega = \Delta \theta / \Delta t$) and angular acceleration ($\alpha = \Delta \omega / \Delta t$) are derived dynamically around the Y-axis with shortest-arc circular wrapping across $[-\pi, \pi]$ and exponential low-pass filtering.
+   - 2nd-order damped harmonic oscillator ($k = 140.0, c = 11.0, m = 1.0$) tuned specifically for heavyweight 240 GSM combed cotton ($\omega_n \approx 11.83$ rad/s, $\zeta \approx 0.465, f_n \approx 1.88$ Hz).
+   - Numerical integration uses a substepped symplectic Euler integrator with velocity and deflection clamping ($\pm 0.35$ rad / 20°), guaranteeing stability even during sudden direction reversals or dropped frame rates.
+2. **Anchor Pinning & Normal Calculation**:
+   - Geometric anchoring rules strictly pin the neckline collar dip ($y \ge 0.42, |x| \le 0.22$) and upper shoulder ridge ($y \ge 0.50, |x| \le 0.65$) to 0% deformation.
+   - Torso hem ($y \le -0.85$) and sleeve cuffs ($|x| \ge 0.95$) experience maximum deformation.
+   - Three.js material shader injection modifies `#include <beginnormal_vertex>` alongside `#include <begin_vertex>` to rotate surface normals by the deflection angle, ensuring studio 3-point lighting and highlights react authentically during cloth sway.
+3. **Studio Interaction & Blueprint Isolation (`GarmentPreview3D.tsx`)**:
+   - Universal interaction support binds the physics simulator to mouse drag, touch swipe, spherical camera view preset transitions (with interior clipping prevention), and turntable auto-rotate.
+   - When generating manufacturing blueprints (`captureOrthographicSnapshot` / `productionBlueprint.ts`), `simulator.freeze()` immediately forces `uInertiaLag = 0.0`, guaranteeing 100% mathematical precision for DTG print guidelines and centimeter rulers.
+4. **Independent Verification**:
+   - Victory Auditor confirmed all 5 requirements (R1–R5) with zero discrepancies.
 
-## Caveats
-- The pre-seeded database lives in SQLite (`prisma/dev.db`). For high-concurrency production deployments, Prisma can be pointed to PostgreSQL via `.env` without schema changes.
+## 3. Caveats
+- Client devices experiencing severe frame drops below 10 FPS will have $\Delta t$ substepping clamped to 0.1s to prevent numerical divergence; this gracefully slows the transient oscillation settling time without glitching geometry.
+- The fabric parameters ($k=140, c=11$) are mathematically optimized for heavy 240 GSM cotton; if lighter fabrics (e.g., 160 GSM jersey) are introduced in future catalog expansions, the parameters should be exposed as garment material presets.
 
-## Conclusion
-- Project successfully completed, independently audited, and verified against 100% of acceptance criteria. Rollout complete.
+## 4. Conclusion
+All requirements R1 through R5 are fully implemented, rigorously verified across 3 adversarial review rounds, and confirmed by independent victory audit. The system is production-ready.
 
-## Verification Method
-- Independent Victory Auditor verdict: `VICTORY CONFIRMED`.
-- Report artifact: `.agents/teamwork/victory_auditor_1/handoff.md`.
+## 5. Verification Method
+- `npx vitest run src/lib/__tests__/garment_physics.test.ts` (40/40 passed)
+- `npm test` (586/586 passed across 24 suites, 0 regressions)
+- `npx tsc --noEmit` (0 type errors, exit code 0)
+- `npm run build` (Exit code 0, 24 routes cleanly generated)
+- Independent Victory Audit: `VERDICT: VICTORY CONFIRMED` (Auditor: `victory_auditor_10`)

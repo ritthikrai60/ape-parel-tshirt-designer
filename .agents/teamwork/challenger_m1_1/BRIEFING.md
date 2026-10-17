@@ -1,53 +1,63 @@
-# BRIEFING — 2026-10-09T23:51:00Z
+# BRIEFING — 2026-10-10T18:46:00Z
 
 ## Mission
-Empirically challenge and stress-test the pricing engine implementation (THB 410 benchmark, volume scaling, variant price adjustments, floating-point rounding, edge cases) and provide a definitive APPROVE or REJECT verdict.
+Adversarially and empirically stress-test `public/models/tshirt.obj` for UV bleeding, boundary leakage, seam crossing, bounds validity, and partition violations.
 
 ## 🔒 My Identity
-- Archetype: teamwork_preview_challenger
+- Archetype: EMPIRICAL CHALLENGER
 - Roles: critic, specialist
 - Working directory: d:\Coding Projects\ape-parel tshirt\.agents\teamwork\challenger_m1_1
-- Original parent: ebc38aff-81cb-457f-bd27-e38a9be40d41
-- Milestone: M1
+- Original parent: 2497e6f8-1432-4f9c-b218-8816c43f5522
+- Milestone: Milestone 1
 - Instance: 1 of 1
 
 ## 🔒 Key Constraints
-- Review-only — do NOT modify implementation code in src/
-- Empirical verification required: must write and run verification code/tests directly
-- No unverified claims: reproduce all findings empirically
-- Store findings in handoff.md and report to parent via send_message
+- Review-only — do NOT modify implementation code or deliverable asset (`public/models/tshirt.obj`)
+- Empirical rigor — find bugs by writing and executing tests, generators, oracles, and stress harnesses
+- Do not trust worker's claims or logs — must reproduce and verify independently
+- `.agents/teamwork/` must contain only agent metadata — test scripts/code must be placed in appropriate project locations outside `.agents/teamwork/`
 
 ## Current Parent
-- Conversation ID: ebc38aff-81cb-457f-bd27-e38a9be40d41
-- Updated: 2026-10-09T23:46:27Z
+- Conversation ID: 2497e6f8-1432-4f9c-b218-8816c43f5522
+- Updated: 2026-10-10T18:50:20Z
 
 ## Review Scope
-- **Files to review**: `src/lib/pricing.ts`, `src/lib/__tests__/pricing.test.ts`, `src/lib/__tests__/pricing_challenger.test.ts`, `src/app/api/pricing/calculate/route.ts`, prisma schema / seed data
-- **Interface contracts**: `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\orchestrator_1\PROJECT.md`
-- **Review criteria**: Benchmark THB 410 calculation (1 unit, 3 licenses), volume scaling, variant adjustments, edge cases (zero/negative/fractional qty, invalid licenses), floating-point precision/rounding errors, server anti-tampering
-
-## Key Decisions Made
-- Authored 44 adversarial empirical test cases in `src/lib/__tests__/pricing_challenger.test.ts` covering: benchmark math, volume scaling (1..10000 units), variant price adjustments (+35 THB), all seeded products (`APX-HVY-001`, `RTR-BOX-002`) and variants, multi-surface DTG combinations, non-positive and fractional quantities, float drift audit, cross-product variant/license injection attack vectors, and NextRequest API integration.
-- Verified 100% pass across 55 total tests via `npm test` and clean Next.js build via `npm run build`.
-- Verdict: APPROVE.
-
-## Artifact Index
-- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\challenger_m1_1\DISPATCH.md` — Dispatch record
-- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\challenger_m1_1\BRIEFING.md` — Situational awareness
-- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\challenger_m1_1\progress.md` — Heartbeat and progress log
-- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\challenger_m1_1\handoff.md` — Formal verdict and findings
-- `d:\Coding Projects\ape-parel tshirt\src\lib\__tests__/pricing_challenger.test.ts` — Empirical test harness
+- **Files to review**: `public/models/tshirt.obj`
+- **Context & reports**:
+  - `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\ORIGINAL_REQUEST.md`
+  - `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\orchestrator_7\PROJECT.md`
+  - `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\worker_m1_gen2_1\handoff.md`
+- **Review criteria**:
+  1. Parse all 2,680 faces and corresponding `vt` references.
+  2. Check whether ANY single face has corners spanning both U < 0.4999 and U > 0.5001 (`crossFaces`).
+  3. Check whether front chest vertices bleed into U > 0.5 or back torso vertices bleed into U < 0.5.
+  4. Adversarially test edge-case texture sampling at U = 0.5000: does front design canvas bake bleed across seams?
+  5. Test UV coordinates bounds: all u, v in [0.0, 1.0].
 
 ## Attack Surface
 - **Hypotheses tested**:
-  - H1: Benchmark 1-unit calculation deviates from 410 THB -> Rejected (exactly 410 THB).
-  - H2: Multi-unit volume scaling suffers floating-point drift or non-linear accumulation -> Rejected (all sums are pure safe integers).
-  - H3: Variant price adjustments fail to carry through or multiply by quantity -> Rejected (adjustments correctly apply to unit price and scale with quantity).
-  - H4: Cross-garment variant injection or cross-artwork license injection allows fee tampering -> Rejected (engine strictly enforces ownership and integrity).
-  - H5: Zero, negative, or fractional quantity inputs crash or corrupt calculations -> Rejected (floored and clamped to minimum 1 in lib; rejected via 400 in API).
-  - H6: Non-default seeded garment `RTR-BOX-002` pricing logic or supplier rates fail -> Rejected (accurately charges 160 base, 85 DTG, 15 pack, 45 ship).
-- **Vulnerabilities found**: None in business logic or numerical integrity.
-- **Untested angles**: Currency conversion (not in scope, MVP is THB-exclusive); dynamic distance-based shipping (flat shipping specified by contract for MVP).
+  - Face-level seam crossing (`crossFaces`) at tolerances 0.0001, 0.00001, and 0.0: RESULT: 0 cross faces (PASS).
+  - Spatial partition bleeding (front chest vs back torso across multi-depth Z sweep): RESULT: 0 torso bleed faces (PASS).
+  - Sub-texel GPU bilinear sampling bleed across $U=0.5000$ seam line: RESULT: 0 bleed for studio artwork (PASS).
+  - UV coordinate bounds within [0.0, 1.0]: RESULT: 100% within [0.0, 1.0] (PASS).
+  - Horizontal anti-mirroring ($r > 0.95$ front, $r < -0.95$ back): RESULT: $r=+0.9984$ front, $r=-0.9931$ back (PASS).
+  - 3D geometric degeneracy: RESULT: 0 degenerate 3D triangles (PASS).
+- **Vulnerabilities found**:
+  - 776 triangles (704 sleeve, 72 collar) have 1D radial UV projection (UV area $< 10^{-8}$). Does not affect DTG/Screen chest/back printing or base solid garment color, but documented as architectural caveat.
+  - Legacy test scripts (`verify_obj_empirical.mjs`, `m5_graphics_production_challenger.test.ts`) threw `TypeError: undefined is not iterable` due to assuming 1:1 $v=vt$ array sizes. Wavefront OBJ files use loop indexing.
+- **Untested angles**:
+  - Three.js WebGL dynamic shadow map interaction and rendering in live browser canvas (scheduled for Milestone 2 / Milestone 3).
 
 ## Loaded Skills
-- None loaded explicitly
+- None specified by orchestrator dispatch.
+
+## Key Decisions Made
+- Executed independent empirical stress test suite `scripts/test_m1_adversarial.mjs`.
+- Verified all 2,680 faces, 0 crossFaces, 0 torso bleed, 0 studio canvas bleed, and valid UV bounds.
+- Issued VERDICT: APPROVE for Milestone 1 Verification Gate with documented caveats.
+
+## Artifact Index
+- `scripts/test_m1_adversarial.mjs` — Comprehensive adversarial test script
+- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\challenger_m1_1\progress.md` — Progress tracker
+- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\challenger_m1_1\handoff.md` — Final handoff report
+

@@ -1,6 +1,9 @@
 import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { SupplierDashboardClient } from '@/components/portal/SupplierDashboardClient';
+import { getSupplierInventoryMatrix } from '@/lib/supplier';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,29 +16,61 @@ export const metadata: Metadata = {
 interface SupplierDashboardPageProps {
   searchParams?: {
     supplier?: string;
+    onboard?: string;
+    onboarding?: string;
   };
 }
 
 export default async function SupplierDashboardPage({
   searchParams,
 }: SupplierDashboardPageProps) {
+  // ── Layer 2 guard (defense-in-depth, middleware is Layer 1) ──────────────
+  const session = await auth();
+  const role = (session?.user as any)?.role as string | undefined;
+
+  if (!session?.user) {
+    redirect('/login?callbackUrl=/supplier/dashboard');
+  }
+
+  if (role !== 'SUPPLIER' && role !== 'ADMIN') {
+    redirect('/403');
+  }
+
+  const userId = (session.user as any).id as string;
+  // ─────────────────────────────────────────────────────────────────────────
+
+  let userSupplierProfile = null;
+  try {
+    userSupplierProfile = await prisma.supplierProfile.findUnique({
+      where: { userId },
+    });
+  } catch (e) {
+    console.error('[SupplierDashboardPage] Error querying user supplier profile:', e);
+  }
+
+  const needsOnboarding =
+    !userSupplierProfile ||
+    searchParams?.onboard === 'true' ||
+    searchParams?.onboarding === 'true' ||
+    searchParams?.supplier === 'onboard';
+
   let suppliers: any[] = [];
 
   try {
-    const dbSuppliers = await prisma.supplierProfile.findMany({
-      include: {
-        printingServices: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (dbSuppliers && dbSuppliers.length > 0) {
+    if (role === 'ADMIN') {
+      // Admins can see all suppliers
+      const dbSuppliers = await prisma.supplierProfile.findMany({
+        include: { printingServices: true },
+        orderBy: { createdAt: 'asc' },
+      });
       suppliers = dbSuppliers.map((s) => ({
         id: s.id,
         slug: s.slug,
         companyName: s.companyName,
         location: s.location,
         leadTimeDays: s.leadTimeDays,
+        verificationStatus: s.verificationStatus,
+        rejectionReason: s.rejectionReason,
         printingServices: s.printingServices.map((p) => ({
           code: p.code,
           name: p.name,
@@ -43,51 +78,42 @@ export default async function SupplierDashboardPage({
           maxPrintHeightCm: p.maxPrintHeightCm,
         })),
       }));
+    } else if (userSupplierProfile) {
+      // Regular suppliers see only their own profile
+      const dbSupplier = await prisma.supplierProfile.findUnique({
+        where: { userId },
+        include: { printingServices: true },
+      });
+      if (dbSupplier) {
+        suppliers = [
+          {
+            id: dbSupplier.id,
+            slug: dbSupplier.slug,
+            companyName: dbSupplier.companyName,
+            location: dbSupplier.location,
+            leadTimeDays: dbSupplier.leadTimeDays,
+            verificationStatus: dbSupplier.verificationStatus,
+            rejectionReason: dbSupplier.rejectionReason,
+            printingServices: dbSupplier.printingServices.map((p) => ({
+              code: p.code,
+              name: p.name,
+              maxPrintWidthCm: p.maxPrintWidthCm,
+              maxPrintHeightCm: p.maxPrintHeightCm,
+            })),
+          },
+        ];
+      }
     }
   } catch (err) {
     console.error('[SupplierDashboardPage] Error querying suppliers:', err);
   }
 
-  // Fallback suppliers if database unseeded
-  if (suppliers.length === 0) {
-    suppliers = [
-      {
-        id: 'supp-bangkok-craft',
-        slug: 'bangkok-garment-craft',
-        companyName: 'Bangkok Garment Craft Co.',
-        location: 'Bang Khun Thian, Bangkok, Thailand',
-        leadTimeDays: 4,
-        printingServices: [
-          {
-            code: 'DTG',
-            name: 'Kornit Digital DTG',
-            maxPrintWidthCm: 35.0,
-            maxPrintHeightCm: 45.0,
-          },
-        ],
-      },
-      {
-        id: 'supp-siam-textile',
-        slug: 'siam-textile-mill',
-        companyName: 'Siam Textile & Screen Works',
-        location: 'Samut Prakan, Thailand',
-        leadTimeDays: 5,
-        printingServices: [
-          {
-            code: 'SCREEN',
-            name: 'Automatic Screen Printing',
-            maxPrintWidthCm: 40.0,
-            maxPrintHeightCm: 50.0,
-          },
-        ],
-      },
-    ];
-  }
-
   const activeSupplierSlug =
-    searchParams?.supplier || suppliers[0]?.slug || 'bangkok-garment-craft';
-  const selectedSupplier =
-    suppliers.find((s) => s.slug === activeSupplierSlug) || suppliers[0];
+    role === 'ADMIN'
+      ? searchParams?.supplier || suppliers[0]?.slug || ''
+      : userSupplierProfile?.slug || '';
+
+  const selectedSupplier = suppliers.find((s) => s.slug === activeSupplierSlug) || suppliers[0];
 
   let orders: any[] = [];
 
@@ -123,12 +149,23 @@ export default async function SupplierDashboardPage({
     console.error('[SupplierDashboardPage] Error querying orders:', err);
   }
 
+  let inventoryMatrix = null;
+  try {
+    if (selectedSupplier?.slug) {
+      inventoryMatrix = await getSupplierInventoryMatrix(selectedSupplier.slug);
+    }
+  } catch (err) {
+    console.error('[SupplierDashboardPage] Error querying inventory matrix:', err);
+  }
+
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <SupplierDashboardClient
         suppliers={suppliers}
         currentSupplierSlug={activeSupplierSlug}
         initialOrders={orders}
+        initialMatrix={inventoryMatrix}
+        needsOnboarding={needsOnboarding}
       />
     </div>
   );

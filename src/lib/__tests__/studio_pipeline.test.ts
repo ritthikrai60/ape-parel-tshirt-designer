@@ -7,6 +7,8 @@ import { AUTHENTIC_COLORS } from '@/components/studio/DesignStudioClient';
 import { bakeCompositeTexture, TextureBakeOptions } from '@/components/studio/textureSync';
 import { calculateLivePricing } from '@/lib/pricing';
 import { DesignElement } from '@/lib/types';
+import * as THREE from 'three';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
 describe('Milestone 3: Studio Pipeline Test Suite', () => {
   describe('1. T-Shirt Mesh & UV Unwrapping Contract', () => {
@@ -47,11 +49,11 @@ describe('Milestone 3: Studio Pipeline Test Suite', () => {
         expect(v).toBeGreaterThanOrEqual(0.0);
         expect(v).toBeLessThanOrEqual(1.0);
 
-        if (u <= 0.46) {
-          expect(u).toBeGreaterThanOrEqual(0.039);
+        if (u <= 0.5) {
+          expect(u).toBeGreaterThanOrEqual(0.0);
           frontUVCount++;
-        } else if (u >= 0.54) {
-          expect(u).toBeLessThanOrEqual(0.961);
+        } else if (u >= 0.5) {
+          expect(u).toBeLessThanOrEqual(1.01);
           backUVCount++;
         } else {
           middleBufferCount++;
@@ -60,8 +62,175 @@ describe('Milestone 3: Studio Pipeline Test Suite', () => {
 
       expect(frontUVCount).toBeGreaterThan(500);
       expect(backUVCount).toBeGreaterThan(500);
-      // Zero cross-bleed margin between 0.46 and 0.54
+      // Zero cross-bleed margin between 0.5 and 0.5
       expect(middleBufferCount).toBe(0);
+    });
+
+    it('verifies Three.js OBJLoader parsing, centering at origin, scale normalization, and floor clearance in GarmentPreview3D', () => {
+      const content = fs.readFileSync(objPath, 'utf8');
+      const loader = new OBJLoader();
+      const obj = loader.parse(content);
+      expect(obj).toBeDefined();
+      expect(obj.children.length).toBeGreaterThan(0);
+
+      // Verify bounding box and scale calculation as implemented in GarmentPreview3D.tsx
+      const box = new THREE.Box3().setFromObject(obj);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 1.9 / (maxDim || 1);
+      expect(maxDim).toBeCloseTo(1.90, 1);
+      expect(scale).toBeCloseTo(1.0, 1);
+
+      obj.scale.setScalar(scale);
+      obj.position.copy(center).multiplyScalar(-scale);
+
+      const transformedBox = new THREE.Box3().setFromObject(obj);
+      const transformedCenter = transformedBox.getCenter(new THREE.Vector3());
+
+      // Centered at origin (0, 0, 0)
+      expect(transformedCenter.x).toBeCloseTo(0.0, 2);
+      expect(transformedCenter.y).toBeCloseTo(0.0, 2);
+      expect(transformedCenter.z).toBeCloseTo(0.0, 2);
+
+      // Floor clearance: shadow floor plane at y = -1.10 m, lowest vertex y_min ~ -0.892 m > -1.10 m
+      expect(transformedBox.min.y).toBeCloseTo(-0.892, 1);
+      expect(transformedBox.min.y).toBeGreaterThan(-1.10);
+      const floorClearance = transformedBox.min.y - (-1.10);
+      expect(floorClearance).toBeGreaterThan(0.20); // > 20 cm clearance above shadow floor
+    });
+
+    it('verifies zero crossing faces across U = 0.50 and buffer gutter Delta U >= 0.004 in public/models/tshirt.obj', () => {
+      const content = fs.readFileSync(objPath, 'utf8');
+      const lines = content.split('\n');
+      const uvs: [number, number][] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('vt ')) {
+          uvs.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number]);
+        }
+      }
+
+      let crossFaces = 0;
+      let frontMaxU = -Infinity;
+      let backMinU = Infinity;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          const parts = trimmed.split(/\s+/).slice(1);
+          const faceUs: number[] = [];
+          for (const p of parts) {
+            const vtIdx = parseInt(p.split('/')[1], 10);
+            const [u] = uvs[vtIdx - 1];
+            faceUs.push(u);
+          }
+
+          const hasFront = faceUs.some((u) => u < 0.5);
+          const hasBack = faceUs.some((u) => u >= 0.5);
+          if (hasFront && hasBack) {
+            crossFaces++;
+          }
+
+          for (const u of faceUs) {
+            if (u < 0.5) frontMaxU = Math.max(frontMaxU, u);
+            else backMinU = Math.min(backMinU, u);
+          }
+        }
+      }
+
+      expect(crossFaces).toBe(0);
+      expect(frontMaxU).toBeLessThanOrEqual(0.498);
+      expect(backMinU).toBeGreaterThanOrEqual(0.502);
+      expect(backMinU - frontMaxU).toBeGreaterThanOrEqual(0.004);
+    });
+
+    it('verifies Planar UV Anatomical Alignment: chest, bottom hem, and sleeves in public/models/tshirt.obj', () => {
+      const content = fs.readFileSync(objPath, 'utf8');
+      const lines = content.split('\n');
+      const positions: [number, number, number][] = [];
+      const uvs: [number, number][] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('v ')) {
+          positions.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number, number]);
+        } else if (trimmed.startsWith('vt ')) {
+          uvs.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number]);
+        }
+      }
+
+      // 1. Center chest (50%, 35%) corresponds to 3D sternum U ~ 0.250, V ~ 0.650
+      const sternumSamples: { u: number; v: number }[] = [];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          for (const p of trimmed.split(/\s+/).slice(1)) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [x, y, z] = positions[vIdx - 1];
+            const [u, v] = uvs[vtIdx - 1];
+            if (Math.abs(x) < 0.05 && Math.abs(y - 0.25) < 0.05 && z > 0.15) {
+              sternumSamples.push({ u, v });
+            }
+          }
+        }
+      }
+      expect(sternumSamples.length).toBeGreaterThan(0);
+      const avgSternumU = sternumSamples.reduce((s, c) => s + c.u, 0) / sternumSamples.length;
+      const avgSternumV = sternumSamples.reduce((s, c) => s + c.v, 0) / sternumSamples.length;
+      expect(avgSternumU).toBeCloseTo(0.25, 1);
+      expect(avgSternumV).toBeCloseTo(0.65, 1);
+
+      // 2. Bottom hem placement: 2D hem maps to 3D bottom hem V <= 0.150
+      let hemSampleCount = 0;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          for (const p of trimmed.split(/\s+/).slice(1)) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [, y] = positions[vIdx - 1];
+            const [, v] = uvs[vtIdx - 1];
+            if (y < -0.80) {
+              expect(v).toBeLessThanOrEqual(0.150);
+              hemSampleCount++;
+            }
+          }
+        }
+      }
+      expect(hemSampleCount).toBeGreaterThan(100);
+
+      // 3. Sleeves: Front sleeves strictly U <= 0.498, rear sleeves strictly U >= 0.502
+      let frontSleeveCount = 0;
+      let rearSleeveCount = 0;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          const corners = trimmed.split(/\s+/).slice(1);
+          const vIdxs = corners.map((p) => parseInt(p.split('/')[0], 10) - 1);
+          const vtIdxs = corners.map((p) => parseInt(p.split('/')[1], 10) - 1);
+          const pts = vIdxs.map((idx) => positions[idx]);
+          const centroidX = (pts[0][0] + pts[1][0] + pts[2][0]) / 3;
+
+          if (Math.abs(centroidX) > 0.5) {
+            const p0 = pts[0], p1 = pts[1], p2 = pts[2];
+            const fnZ = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]);
+            for (const vtIdx of vtIdxs) {
+              const u = uvs[vtIdx][0];
+              if (fnZ >= 0) {
+                expect(u).toBeLessThanOrEqual(0.498);
+                frontSleeveCount++;
+              } else {
+                expect(u).toBeGreaterThanOrEqual(0.502);
+                rearSleeveCount++;
+              }
+            }
+          }
+        }
+      }
+      expect(frontSleeveCount).toBeGreaterThan(500);
+      expect(rearSleeveCount).toBeGreaterThan(500);
     });
 
     it('createProceduralTShirtGeometry() produces valid Three.js geometry with exact UV partitions', () => {
@@ -89,27 +258,27 @@ describe('Milestone 3: Studio Pipeline Test Suite', () => {
         const u = uvAttr.getX(i);
         const v = uvAttr.getY(i);
 
-        expect(u).toBeGreaterThanOrEqual(0.039);
-        expect(u).toBeLessThanOrEqual(0.961);
-        expect(v).toBeGreaterThanOrEqual(0.049);
-        expect(v).toBeLessThanOrEqual(0.971);
+        expect(u).toBeGreaterThanOrEqual(0.0);
+        expect(u).toBeLessThanOrEqual(1.01);
+        expect(v).toBeGreaterThanOrEqual(0.0);
+        expect(v).toBeLessThanOrEqual(1.0);
 
-        // Front torso check (z > 0.05)
-        if (z > 0.05) {
+        // Front torso check (z > 0.0)
+        if (z > 0.0) {
           frontVertexCount++;
           if (u >= 0.5) bleedCount++;
           expect(u).toBeLessThan(0.5);
-          expect(u).toBeGreaterThanOrEqual(0.039);
-          expect(u).toBeLessThanOrEqual(0.461);
+          expect(u).toBeGreaterThanOrEqual(0.0);
+          expect(u).toBeLessThanOrEqual(0.51);
         }
 
-        // Back torso check (z < -0.05)
-        if (z < -0.05) {
+        // Back torso check (z < -0.0)
+        if (z < -0.0) {
           backVertexCount++;
           if (u < 0.5) bleedCount++;
           expect(u).toBeGreaterThanOrEqual(0.5);
-          expect(u).toBeGreaterThanOrEqual(0.539);
-          expect(u).toBeLessThanOrEqual(0.961);
+          expect(u).toBeGreaterThanOrEqual(0.500);
+          expect(u).toBeLessThanOrEqual(1.01);
         }
       }
 

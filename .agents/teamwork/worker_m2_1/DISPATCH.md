@@ -106,3 +106,68 @@ Your tasks:
 7. Run `npx tsc --noEmit`, `npm test`, and `npm run build`. Verify all succeed with 0 errors.
 8. Write a full handoff report in `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\worker_m2_1\handoff.md` with verification command outputs.
 9. Send a completion message to the orchestrator (ebc38aff-81cb-457f-bd27-e38a9be40d41).
+
+
+## 2026-10-10T18:55:23Z
+You are Worker 1 (worker_m2_1) for Milestone 2 of the ape-parel project.
+Working directory: `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\worker_m2_1`
+Project root: `d:\Coding Projects\ape-parel tshirt`
+Authoritative Request: `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\ORIGINAL_REQUEST.md`
+Project Scope: `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\orchestrator_7\PROJECT.md`
+Predecessor Reports:
+- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\worker_m1_gen2_1\handoff.md`
+- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\challenger_m1_2\handoff.md`
+- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\challenger_m1_1\handoff.md`
+- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\reviewer_m1_1\handoff.md`
+- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\reviewer_m1_2\handoff.md`
+- `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\auditor_m1_1\handoff.md`
+
+MANDATORY INTEGRITY WARNING:
+DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. An auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
+
+Write Ownership:
+You exclusively own:
+- `src/lib/__tests__/m5_graphics_production_challenger.test.ts`
+- `src/lib/__tests__/studio_pipeline.test.ts`
+- `src/lib/__tests__/studio_challenger.test.ts`
+- `src/lib/__tests__/m5_adversarial_final.test.ts`
+- `src/lib/tshirtGeometry.ts` (if needed for fallback alignment)
+- `src/components/studio/GarmentPreview3D.tsx` (if needed)
+DO NOT modify `public/models/tshirt.obj` (this asset is sealed and audited).
+
+Task:
+Milestone 2: Test Alignment & 3D Studio Integration
+1. Align `src/lib/__tests__/m5_graphics_production_challenger.test.ts`:
+   - Lines 188–190: Update expected counts to match the genuine Blender loop-unwrapped OBJ model: 1,462 vertices (`v`), 1,104 UVs (`vt`), 1,174 normals (`vn`), 2,680 faces (`f`).
+   - Line 227: Update upper bound on vertex reference indices to 1,462.
+   - Line 387 ("verifies Back surface is UNMIRRORED"): In standard Wavefront OBJ format, UVs are associated with vertices per-face-corner (`f v/vt/vn`), not as a 1:1 parallel array indexed by `positions[i]`. Update the test logic to map positions and UVs through the face loop definitions (`f.v` -> `f.vt`), matching the actual Wavefront OBJ format.
+   - Un-skip all skipped tests in this file (e.g. `test.skip` -> `test`) and ensure they pass.
+2. Align `src/lib/__tests__/studio_pipeline.test.ts`:
+   - Line 111: Update legacy 8% buffer margin assertion (`u >= 0.539`) to strict 50/50 partition (`u >= 0.500`), matching Feature 2 and Feature 6 in `PROJECT.md`.
+3. Align `src/lib/__tests__/studio_challenger.test.ts`:
+   - Un-skip all 4 skipped tests in this file and ensure they pass on the new model.
+4. Align `src/lib/__tests__/m5_adversarial_final.test.ts`:
+   - Un-skip any skipped tests and ensure they pass on the new model.
+5. Verify `src/components/studio/GarmentPreview3D.tsx` and Next.js `DesignStudioClient` integration.
+6. Run test and build commands:
+   - `npx vitest run src/lib/__tests__/m5_graphics_production_challenger.test.ts`
+   - `npx vitest run src/lib/__tests__/studio_pipeline.test.ts`
+   - `npx vitest run src/lib/__tests__/studio_challenger.test.ts`
+   - `npx vitest run src/lib/__tests__/m5_adversarial_final.test.ts`
+   - `npm test`
+   - `npx tsc --noEmit`
+   - `npm run build`
+
+Output:
+Write your full report to `d:\Coding Projects\ape-parel tshirt\.agents\teamwork\worker_m2_1\handoff.md` with:
+- Observation (files changed, line numbers, exact diff rationale)
+- Logic Chain & Caveats
+- Command outputs (test results, build output)
+- Conclusion & Verification method
+Notify your orchestrator when done via send_message.
+
+
+## 2026-10-10T19:00:26Z
+[Message] timestamp=2026-10-10T19:00:26Z sender=2497e6f8-1432-4f9c-b218-8816c43f5522 priority=MESSAGE_PRIORITY_HIGH content=**Context**: Milestone 2 Test Alignment & Studio Integration Progress Check
+**Content**: Please provide your current progress status. What step of your plan are you currently executing? If you have completed test alignments or encountered any issues, please report.
+**Action**: Report current status and next actions.

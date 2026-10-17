@@ -12,6 +12,7 @@ export async function calculateLivePricing(
     garmentProductId,
     garmentVariantId,
     quantity = 1,
+    userId,
     frontArtworkLicenses = [],
     backArtworkLicenses = [],
     sideArtworkLicenses = [],
@@ -78,13 +79,7 @@ export async function calculateLivePricing(
     ...sideArtworkLicenses,
   ];
 
-  const artworkBreakdown: Array<{
-    artworkId: string;
-    title: string;
-    creatorName: string;
-    unitPrice: number;
-    totalPrice: number;
-  }> = [];
+  const artworkBreakdown: PriceCalculationResult['breakdown']['artworkLicenses'] = [];
 
   let licensingCost = 0;
 
@@ -114,8 +109,24 @@ export async function calculateLivePricing(
       );
     }
 
-    const unitPrice = license.price;
-    const itemTotal = unitPrice * validQty;
+    let isPermanentIp = false;
+    if (userId && license.artworkId) {
+      const owned = await prisma.userArtworkLicense.findUnique({
+        where: {
+          userId_artworkId: {
+            userId,
+            artworkId: license.artworkId,
+          },
+        },
+      });
+      if (owned && owned.status === 'ACTIVE') {
+        isPermanentIp = true;
+      }
+    }
+
+    const isUnlimited = license.scope === 'UNLIMITED';
+    const unitPrice = isPermanentIp ? 0 : license.price;
+    const itemTotal = isPermanentIp ? 0 : isUnlimited ? license.price : unitPrice * validQty;
     licensingCost += itemTotal;
 
     artworkBreakdown.push({
@@ -124,6 +135,12 @@ export async function calculateLivePricing(
       creatorName: license.artwork.creator.displayName,
       unitPrice,
       totalPrice: itemTotal,
+      isPermanentIp,
+      notes: isPermanentIp
+        ? 'PERMANENT IP (FREE)'
+        : isUnlimited
+        ? 'LIFETIME BUYOUT'
+        : undefined,
     });
   }
 

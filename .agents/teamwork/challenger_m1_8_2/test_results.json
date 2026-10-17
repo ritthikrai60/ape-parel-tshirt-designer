@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-11T01:37:39.843Z",
+  "target": "public/models/tshirt.obj",
+  "verdict": "APPROVE",
+  "passedCount": 22,
+  "failedCount": 0,
+  "tests": [
+    {
+      "id": "T1_OBJLOADER_PARSE",
+      "name": "Three.js OBJLoader parses public/models/tshirt.obj without throwing errors",
+      "passed": true,
+      "details": "Clean parse"
+    },
+    {
+      "id": "T1_SINGLE_CHILD_MESH",
+      "name": "OBJ contains exactly 1 child mesh with object tag \"TShirt\"",
+      "passed": true,
+      "details": "Children count: 1, name: \"TShirt\""
+    },
+    {
+      "id": "T1_BUFFER_GEOMETRY_EXISTS",
+      "name": "Mesh contains a valid Three.js BufferGeometry instance",
+      "passed": true,
+      "details": "Instance type: BufferGeometry"
+    },
+    {
+      "id": "T1_VERTEX_POS_COUNT",
+      "name": "Vertex positions count equals 10,192 * 3 = 30,576 buffer elements",
+      "passed": true,
+      "details": "pos.count: 30576 (expected 30576)"
+    },
+    {
+      "id": "T1_POS_BUFFER_ARRAY_LENGTH",
+      "name": "Position buffer array length equals 30,576 * 3 = 91,728 float elements",
+      "passed": true,
+      "details": "pos.array.length: 91728"
+    },
+    {
+      "id": "T1_NORMAL_COUNT",
+      "name": "Normal attribute count equals 30,576 elements (array length 91,728)",
+      "passed": true,
+      "details": "norm.count: 30576, array length: 91728"
+    },
+    {
+      "id": "T1_UV_COUNT",
+      "name": "UV attribute count equals 30,576 elements (array length 61,152)",
+      "passed": true,
+      "details": "uv.count: 30576, array length: 61152"
+    },
+    {
+      "id": "T1_NO_NAN_OR_INF",
+      "name": "Zero NaN or Inf values across all BufferAttributes (position, normal, uv)",
+      "passed": true,
+      "details": "Found 0 NaN/Inf values"
+    },
+    {
+      "id": "T1_NORMALS_NON_ZERO",
+      "name": "All vertex normals have valid non-zero length",
+      "passed": true,
+      "details": "Found 0 zero normals"
+    },
+    {
+      "id": "T2_BOX_CENTER_ORIGIN",
+      "name": "Box center is at origin (0, 0, 0) within 1e-4 tolerance",
+      "passed": true,
+      "details": "Center offset length: 0.0000e+0"
+    },
+    {
+      "id": "T2_MAX_DIMENSION_1_90",
+      "name": "Max dimension equals 1.90 units within 1e-4 tolerance",
+      "passed": true,
+      "details": "maxDim: 1.900000 (diff: 2.3842e-8)"
+    },
+    {
+      "id": "T2_FLOOR_CLEARANCE",
+      "name": "Garment hem strictly clears shadow floor at y = -1.10 with margin > +0.20 units",
+      "passed": true,
+      "details": "Clearance: +0.208331 units"
+    },
+    {
+      "id": "T3_FRONT_CHEST_PROBES_INCREASING_U",
+      "name": "Front chest probes at Left (X < 0) and Right (X > 0) strictly assert U(right) > U(left) across all heights",
+      "passed": true,
+      "details": "All 5 height slices passed: true"
+    },
+    {
+      "id": "T3_BACK_PROBES_INCREASING_U",
+      "name": "Back probes viewed from behind (looking towards +Z) assert viewed-left to viewed-right maps to increasing U across all heights",
+      "passed": true,
+      "details": "All 5 height slices passed: true"
+    },
+    {
+      "id": "T3_FRONT_PROBES_U_IN_0_0_5",
+      "name": "Front chest probe UVs are strictly bounded in [0.0, 0.5]",
+      "passed": true,
+      "details": "Max Front probe U: 0.3413 <= 0.50"
+    },
+    {
+      "id": "T3_BACK_PROBES_U_IN_0_5_1_0",
+      "name": "Back torso probe UVs are strictly bounded in [0.5, 1.0]",
+      "passed": true,
+      "details": "Min Back probe U: 0.6586 >= 0.50"
+    },
+    {
+      "id": "T4_FRONT_TEXT_LEFT_TO_RIGHT",
+      "name": "Text mapped to Front canvas renders strictly left-to-right on screen without mirroring",
+      "passed": true,
+      "details": "Screen X positions: -0.339, -0.096, 0.154, 0.380"
+    },
+    {
+      "id": "T4_BACK_TEXT_LEFT_TO_RIGHT",
+      "name": "Text mapped to Back canvas renders strictly left-to-right on screen without mirroring",
+      "passed": true,
+      "details": "Screen X positions: -0.337, -0.104, 0.156, 0.337"
+    },
+    {
+      "id": "T4_FRONT_TEXT_UPRIGHT",
+      "name": "Front text renders upright (top of garment maps to higher texture V)",
+      "passed": true,
+      "details": "Front dV: +0.4953"
+    },
+    {
+      "id": "T4_BACK_TEXT_UPRIGHT",
+      "name": "Back text renders upright (top of garment maps to higher texture V)",
+      "passed": true,
+      "details": "Back dV: +0.6379"
+    },
+    {
+      "id": "T5_ZERO_CROSS_BORDER_FACES",
+      "name": "Exactly 0 triangles cross across U = 0.50 boundary partition",
+      "passed": true,
+      "details": "Found 0 crossing triangles"
+    },
+    {
+      "id": "T5_NO_DEGENERATE_TRIANGLES",
+      "name": "Zero degenerate 3D triangles (zero surface area)",
+      "passed": true,
+      "details": "Found 0 degenerate triangles"
+    }
+  ]
+}

@@ -1,0 +1,269 @@
+{
+  "timestamp": "2026-10-10T20:42:41.712Z",
+  "targetFile": "public/models/tshirt.obj",
+  "verdict": "APPROVE",
+  "overallPass": true,
+  "task1": {
+    "passed": true,
+    "totalTris": 10192,
+    "isAllTris": true,
+    "crossingFaces": 0,
+    "pureFrontFaces": 5234,
+    "pureBackFaces": 4958,
+    "frontMaxU": 0.498,
+    "backMinU": 0.502,
+    "frontMinU": 0.002,
+    "backMaxU": 0.998,
+    "frontClearance": 0.0020000000000000018,
+    "backClearance": 0.0020000000000000018,
+    "deltaU": 0.0040000000000000036
+  },
+  "task2": {
+    "passed": true,
+    "sharedTorsoVCount": 54,
+    "leftSeamVCount": 27,
+    "rightSeamVCount": 27,
+    "coincidentPairs": 0,
+    "sharedVTCount": 0,
+    "vtBleedCount": 0
+  },
+  "task3": {
+    "passed": true,
+    "frontChestFaces": 525,
+    "frontChestViolations": 0,
+    "frontChestCompliance": 100,
+    "upperBackFaces": 535,
+    "upperBackViolations": 0,
+    "upperBackCompliance": 100,
+    "islandCount": 15,
+    "totalFrontIslandFaces": 5234,
+    "totalBackIslandFaces": 4958,
+    "islands": [
+      {
+        "islandIndex": 1,
+        "name": "Front Torso Body",
+        "faceCount": 3008,
+        "assignedPartition": "Front",
+        "uRange": [
+          0.002,
+          0.498
+        ],
+        "vRange": [
+          0.012312,
+          0.515286
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 2,
+        "name": "Back Torso Body",
+        "faceCount": 3124,
+        "assignedPartition": "Back",
+        "uRange": [
+          0.502,
+          0.998
+        ],
+        "vRange": [
+          0.012312,
+          0.538007
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 3,
+        "name": "Collar Outer",
+        "faceCount": 204,
+        "assignedPartition": "Front",
+        "uRange": [
+          0.020646,
+          0.346937
+        ],
+        "vRange": [
+          0.601292,
+          0.614025
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 4,
+        "name": "Left Sleeve Cuff 1",
+        "faceCount": 132,
+        "assignedPartition": "Back",
+        "uRange": [
+          0.578676,
+          0.966367
+        ],
+        "vRange": [
+          0.798437,
+          0.818875
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 5,
+        "name": "Left Sleeve Main",
+        "faceCount": 1234,
+        "assignedPartition": "Back",
+        "uRange": [
+          0.55,
+          0.95
+        ],
+        "vRange": [
+          0.517883,
+          0.813472
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 6,
+        "name": "Right Sleeve Cuff 1",
+        "faceCount": 132,
+        "assignedPartition": "Front",
+        "uRange": [
+          0.05,
+          0.45
+        ],
+        "vRange": [
+          0.821576,
+          0.842016
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 7,
+        "name": "Right Sleeve Main",
+        "faceCount": 1234,
+        "assignedPartition": "Front",
+        "uRange": [
+          0.020646,
+          0.408358
+        ],
+        "vRange": [
+          0.668347,
+          0.963937
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 8,
+        "name": "Left Sleeve Cuff 2",
+        "faceCount": 132,
+        "assignedPartition": "Back",
+        "uRange": [
+          0.588958,
+          0.976648
+        ],
+        "vRange": [
+          0.844696,
+          0.865135
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 9,
+        "name": "Right Sleeve Cuff 2",
+        "faceCount": 132,
+        "assignedPartition": "Front",
+        "uRange": [
+          0.05,
+          0.45
+        ],
+        "vRange": [
+          0.868045,
+          0.888485
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 10,
+        "name": "Collar Inner",
+        "faceCount": 204,
+        "assignedPartition": "Front",
+        "uRange": [
+          0.020646,
+          0.346937
+        ],
+        "vRange": [
+          0.616915,
+          0.629647
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 11,
+        "name": "Front Hem Outer",
+        "faceCount": 160,
+        "assignedPartition": "Front",
+        "uRange": [
+          0.02,
+          0.48
+        ],
+        "vRange": [
+          0.891374,
+          0.905782
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 12,
+        "name": "Back Hem Outer",
+        "faceCount": 160,
+        "assignedPartition": "Back",
+        "uRange": [
+          0.52,
+          0.98
+        ],
+        "vRange": [
+          0.943289,
+          0.957697
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 13,
+        "name": "Front Hem Inner",
+        "faceCount": 160,
+        "assignedPartition": "Front",
+        "uRange": [
+          0.02,
+          0.48
+        ],
+        "vRange": [
+          0.908694,
+          0.923101
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 14,
+        "name": "Back Hem Inner",
+        "faceCount": 160,
+        "assignedPartition": "Back",
+        "uRange": [
+          0.52,
+          0.98
+        ],
+        "vRange": [
+          0.925991,
+          0.940399
+        ],
+        "isCompliant": true
+      },
+      {
+        "islandIndex": 15,
+        "name": "Brand Patch",
+        "faceCount": 16,
+        "assignedPartition": "Back",
+        "uRange": [
+          0.72,
+          0.78
+        ],
+        "vRange": [
+          0.88,
+          0.94
+        ],
+        "isCompliant": true
+      }
+    ]
+  }
+}

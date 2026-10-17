@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { auth } from '@/auth';
 import { calculateLivePricing } from '@/lib/pricing';
 import { PricingPayload, PriceCalculationResult } from '@/lib/types';
 
@@ -26,6 +27,7 @@ const pricingCalculateSchema = z.object({
     .string({ required_error: 'garmentProductId is required' })
     .min(1, 'garmentProductId cannot be empty'),
   garmentVariantId: z.string().optional(),
+  userId: z.string().optional(),
   quantity: z
     .number({ invalid_type_error: 'quantity must be a number' })
     .int('quantity must be an integer')
@@ -81,6 +83,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const payload: PricingPayload = parseResult.data;
+
+  // Resolve user id from payload or authenticated session
+  if (!payload.userId) {
+    try {
+      const session = await auth();
+      if (session?.user?.id) {
+        payload.userId = session.user.id;
+      }
+    } catch {
+      // In test/mock environment auth() might throw or be unconfigured
+    }
+  }
 
   // 3. Compute live pricing via authoritative engine
   try {

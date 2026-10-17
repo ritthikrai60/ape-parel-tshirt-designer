@@ -182,7 +182,7 @@ export async function generateProductionPackage(
     supplier.printingServices.find((s) => s.code === 'DTG') ||
     supplier.printingServices[0] || {
       code: 'DTG',
-      name: 'High-Definition Kornit Digital DTG',
+      name: 'High-Definition Digital DTG',
       description: 'Water-based pigment direct-to-garment print',
       maxPrintWidthCm: 35.0,
       maxPrintHeightCm: 45.0,

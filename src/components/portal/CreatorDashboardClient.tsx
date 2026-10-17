@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   TrendingUp,
@@ -17,6 +18,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { CreatorLedgerSummary, RoyaltyLedgerEntryDetails } from '@/lib/types';
+import { CreatorOnboardingModal } from './CreatorOnboardingModal';
+import { NotificationBell } from './NotificationBell';
 
 export interface CreatorOption {
   id: string;
@@ -26,28 +29,48 @@ export interface CreatorOption {
   payoutDetails: string | null;
 }
 
+export interface CreatorArtworkSummary {
+  id: string;
+  title: string;
+  previewUrl: string;
+  status: string;
+  moderationStatus: string;
+  moderationReason: string | null;
+  moderatedAt: string | null;
+  licenseOptions?: Array<{ price: number }>;
+  createdAt: string;
+}
+
 export interface CreatorDashboardClientProps {
   initialSummary: CreatorLedgerSummary | null;
   initialEntries: RoyaltyLedgerEntryDetails[];
+  initialArtworks?: CreatorArtworkSummary[];
   allCreators: CreatorOption[];
   currentSlug: string;
+  needsOnboarding?: boolean;
+  initialUser?: { id?: string; name?: string | null; email?: string | null } | null;
 }
 
 export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
   initialSummary,
   initialEntries,
+  initialArtworks = [],
   allCreators,
   currentSlug,
+  needsOnboarding,
+  initialUser,
 }) => {
   const router = useRouter();
   const [summary, setSummary] = useState<CreatorLedgerSummary | null>(initialSummary);
   const [entries, setEntries] = useState<RoyaltyLedgerEntryDetails[]>(initialEntries);
+  const [artworks] = useState<CreatorArtworkSummary[]>(initialArtworks);
   const [filterType, setFilterType] = useState<'ALL' | 'EARNING' | 'PAYOUT_SETTLEMENT'>('ALL');
   const [isSettling, setIsSettling] = useState(false);
   const [settlementSuccess, setSettlementSuccess] = useState<string | null>(null);
   const [settlementError, setSettlementError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [payoutRefInput, setPayoutRefInput] = useState('');
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(Boolean(needsOnboarding));
 
   const currentCreator = allCreators.find((c) => c.slug === currentSlug) || allCreators[0];
 
@@ -104,6 +127,25 @@ export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
 
   return (
     <div className="space-y-8 w-full">
+      {needsOnboarding && (
+        <div className="bg-warm/25 border border-warm/60 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <span className="p-2 rounded-lg bg-ink text-paper font-bold font-mono text-xs">ONBOARDING</span>
+            <div>
+              <p className="font-sans font-bold text-sm text-ink">You haven&apos;t set up your Creator Profile yet.</p>
+              <p className="font-mono text-xs text-mutedGray">Set up your artist slug and PromptPay payout details to unlock royalties.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsOnboardingOpen(true)}
+            className="px-4 py-2 bg-ink text-paper rounded-lg font-mono text-xs uppercase font-bold hover:bg-ink-light transition-colors whitespace-nowrap self-start sm:self-auto"
+          >
+            Setup Creator Profile
+          </button>
+        </div>
+      )}
+
       {/* Top Bar: Creator Info & Persona Switcher */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-borderCol pb-6">
         <div className="flex items-center space-x-4">
@@ -150,6 +192,16 @@ export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
               </select>
             </div>
           )}
+
+          <NotificationBell />
+
+          <Link
+            href={`/creator/journal?creator=${encodeURIComponent(currentSlug)}`}
+            className="px-3.5 py-2 bg-paper hover:bg-paper-dark border border-borderCol text-ink font-mono text-xs font-bold rounded-lg transition-colors flex items-center space-x-1.5 shadow-sm"
+          >
+            <Receipt className="w-4 h-4 text-warm-dark" />
+            <span>Journal & Tax 50 Tawi</span>
+          </Link>
 
           <button
             type="button"
@@ -389,6 +441,125 @@ export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
         </div>
       </div>
 
+      {/* Creator Artwork Submissions & Moderation Status */}
+      <div className="bg-paper-light border border-borderCol rounded-xl overflow-hidden shadow-sm">
+        <div className="p-5 border-b border-borderCol flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center space-x-2">
+              <Package className="w-5 h-5 text-warm-dark" />
+              <h2 className="text-base font-bold font-sans text-ink uppercase tracking-tight">
+                Artwork Submissions & Moderation Status
+              </h2>
+            </div>
+            <p className="font-mono text-xs text-mutedGray mt-0.5">
+              Live audit track of your transparent graphic submissions before publishing to Marketplace & Studio.
+            </p>
+          </div>
+          <Link
+            href="/creator/upload"
+            className="px-3.5 py-2 bg-ink hover:bg-ink-light text-paper font-mono text-xs font-bold uppercase rounded-lg transition-colors flex items-center space-x-1.5 shadow-sm self-start sm:self-auto"
+          >
+            <span>+ Upload New Artwork</span>
+          </Link>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table data-testid="creator-artworks-table" className="w-full text-left text-xs font-mono">
+            <thead className="bg-paper border-b border-borderCol text-mutedGray uppercase text-[11px]">
+              <tr>
+                <th className="py-3 px-4 font-semibold">Preview & Title</th>
+                <th className="py-3 px-4 font-semibold">Submitted</th>
+                <th className="py-3 px-4 font-semibold">Royalty Tier</th>
+                <th className="py-3 px-4 font-semibold">Store Status</th>
+                <th className="py-3 px-4 font-semibold">Moderation Status</th>
+                <th className="py-3 px-4 font-semibold">Review Feedback</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-borderCol/60">
+              {artworks.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-mutedGray">
+                    No artworks uploaded yet.{' '}
+                    <Link href="/creator/upload" className="text-ink font-bold underline">
+                      Upload your first design
+                    </Link>
+                    .
+                  </td>
+                </tr>
+              ) : (
+                artworks.map((art) => (
+                  <tr key={art.id} className="hover:bg-paper/50 transition-colors">
+                    <td className="py-3 px-4 text-ink">
+                      <div className="flex items-center space-x-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={art.previewUrl}
+                          alt={art.title}
+                          className="w-10 h-10 rounded border border-borderCol object-contain bg-paper-dark"
+                        />
+                        <div>
+                          <div className="font-bold text-ink">{art.title}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-mutedGray whitespace-nowrap">
+                      {new Date(art.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </td>
+                    <td className="py-3 px-4 font-bold text-ink whitespace-nowrap">
+                      ฿{(art.licenseOptions?.[0]?.price ?? 50).toLocaleString()} THB
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                          art.status === 'PUBLISHED'
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                            : 'bg-paper-dark text-mutedGray border-borderCol'
+                        }`}
+                      >
+                        {art.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      {art.moderationStatus === 'APPROVED' ? (
+                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200 inline-flex items-center space-x-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>APPROVED</span>
+                        </span>
+                      ) : art.moderationStatus === 'REJECTED' ? (
+                        <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold border border-rose-200 inline-flex items-center space-x-1">
+                          <AlertCircle className="w-3 h-3 text-rose-600" />
+                          <span>REJECTED</span>
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-warm/30 text-ink font-bold border border-warm/60 inline-flex items-center space-x-1">
+                          <Clock className="w-3 h-3 text-warm-dark" />
+                          <span>PENDING REVIEW</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 max-w-xs text-ink">
+                      {art.moderationReason ? (
+                        <div className="p-2 bg-rose-50 border border-rose-200 rounded text-[11px] text-rose-800 leading-snug">
+                          {art.moderationReason}
+                        </div>
+                      ) : art.moderationStatus === 'APPROVED' ? (
+                        <span className="text-mutedGray text-[11px]">Approved for live sales</span>
+                      ) : (
+                        <span className="text-mutedGray text-[11px]">Awaiting moderator queue</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Payout Settlement Confirmation Modal */}
       {isModalOpen && (
         <div
@@ -471,6 +642,12 @@ export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
           </div>
         </div>
       )}
+
+      <CreatorOnboardingModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+        initialUser={initialUser}
+      />
     </div>
   );
 };

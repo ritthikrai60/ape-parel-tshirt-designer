@@ -10,6 +10,12 @@ To independently verify that the system works as intended by executing tests and
 - Verify that the Definition of Done is fully met.
 - Transition task states from `VERIFYING` to `PASS` or `FAILED`.
 
+## Attached Factory Skills
+- `unit-testing-test-generate`
+- `test-automator`
+- `ui-visual-validator`
+- `typescript-pro`
+
 ## Explicit Exclusions
 - May NOT write the implementation code.
 - May NOT blindly pass a task simply because the Implementer said it works.

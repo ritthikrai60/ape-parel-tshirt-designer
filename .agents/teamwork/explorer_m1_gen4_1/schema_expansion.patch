@@ -1,0 +1,127 @@
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -35,2 +35,4 @@
+   updatedAt     DateTime  @updatedAt
+   artworks      Artwork[]
++  storefrontSettings CreatorStorefrontSettings?
++  financialAccount   FinancialAccount?
+ }
+@@ -74,2 +76,3 @@
+   updatedAt        DateTime            @updatedAt
+   licenseOptions   LicenseOption[]
+   obligations      RoyaltyObligation[]
++  fileSpec         ArtworkFileSpec?
+ }
+@@ -190,2 +193,3 @@
+   updatedAt       DateTime            @updatedAt
+   obligations     RoyaltyObligation[]
++  journalEntries  JournalEntry[]
+ }
+@@ -237,7 +241,9 @@
+ model AuditEvent {
+   id         String   @id @default(cuid())
+   userId     String?
+   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
++  actorId    String?  // Optional actor identifier (user ID, 'SYSTEM', 'RECONCILIATION_ENGINE')
+   action     String
+   entityType String
+   entityId   String?
+   payload    String? // JSON string
++  metadata   String? // JSON string for additional context/telemetry
+   createdAt  DateTime @default(now())
+ }
++
++model CreatorStorefrontSettings {
++  id                 String         @id @default(cuid())
++  creatorId          String         @unique
++  creator            CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
++  customSlug         String?        @unique
++  bio                String?
++  bannerUrl          String?
++  avatarUrl          String?
++  socialLinks        String?        // JSON string: { instagram, twitter, behance, tiktok, youtube, website }
++  themePreferences   String?        // JSON string: { primaryColor, accentColor, font, mode }
++  featuredArtworkIds String?        // JSON string array: ["art_1", "art_2"]
++  badgeVerified      Boolean        @default(false)
++  createdAt          DateTime       @default(now())
++  updatedAt          DateTime       @updatedAt
++}
++
++model ArtworkFileSpec {
++  id                     String   @id @default(cuid())
++  artworkId              String   @unique
++  artwork                Artwork  @relation(fields: [artworkId], references: [id], onDelete: Cascade)
++  storagePath            String   // Local filesystem path e.g. public/uploads/masters/[id].png
++  storageKey             String?  // Storage key / relative reference e.g. masters/[id].png
++  mimeType               String   // image/png, image/svg+xml, image/tiff, image/jpeg
++  width                  Int      // Width in pixels
++  height                 Int      // Height in pixels
++  dpi                    Int      @default(300) // Minimum 300 DPI (or 0 for vector)
++  colorSpace             String   @default("sRGB") // sRGB, Display P3, CMYK
++  hasTransparency        Boolean  @default(false)
++  isVector               Boolean  @default(false)
++  previewWatermarkedPath String?  // Watermarked public preview path
++  fileSize               Int      // File size in bytes
++  createdAt              DateTime @default(now())
++  updatedAt              DateTime @updatedAt
++}
++
++model CommissionRule {
++  id            String    @id @default(cuid())
++  name          String    @unique // e.g. "STANDARD_15_85", "EXCLUSIVE_CREATOR_TIER"
++  platformRate  Float     @default(0.15) // 15% platform commission rate
++  creatorRate   Float     @default(0.85) // 85% creator royalty share rate
++  isActive      Boolean   @default(true)
++  effectiveFrom DateTime  @default(now())
++  effectiveTo   DateTime?
++  description   String?
++  createdAt     DateTime  @default(now())
++  updatedAt     DateTime  @updatedAt
++}
++
++model FinancialAccount {
++  id            String          @id @default(cuid())
++  accountType   String          // CREATOR, PLATFORM, ESCROW
++  accountNumber String          @unique // e.g. "ACC-CREATOR-dash-ape", "ACC-PLATFORM-REVENUE", "ACC-ESCROW-HOLDING"
++  balance       Int             @default(0) // In THB
++  currency      String          @default("THB")
++  creatorId     String?         @unique
++  creator       CreatorProfile? @relation(fields: [creatorId], references: [id], onDelete: Cascade)
++  status        String          @default("ACTIVE") // ACTIVE, FROZEN, CLOSED
++  createdAt     DateTime        @default(now())
++  updatedAt     DateTime        @updatedAt
++
++  journalEntries JournalEntry[]
++}
++
++model JournalEntry {
++  id           String           @id @default(cuid())
++  accountId    String
++  account      FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
++  entryType    String           // DEBIT, CREDIT
++  amount       Int              // In THB (positive integer)
++  balanceAfter Int              // Balance of this account after this transaction
++  orderId      String?
++  order        Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
++  reference    String?          // e.g. orderNumber, settlementNumber
++  description  String?
++  createdAt    DateTime         @default(now())
++}
++
++model ReconciliationReport {
++  id                          String    @id @default(cuid())
++  period                      String    // e.g. "2026-10", "2026-W41"
++  periodStart                 DateTime?
++  periodEnd                   DateTime?
++  totalGmv                    Int       @default(0) // Gross Merchandise Value in THB
++  totalCommission             Int       @default(0) // Total 15% platform commission
++  totalCreatorRoyalties       Int       @default(0) // Total 85% creator royalties
++  matchedItemsCount           Int       @default(0)
++  discrepancyCount            Int       @default(0)
++  status                      String    @default("BALANCED") // BALANCED, DISCREPANCY, PENDING, RECONCILED
++  balanceConservationVerified Boolean   @default(true) // Verified sum(Credits) == sum(Debits)
++  discrepancyDetails          String?   // JSON diagnostics if discrepancy detected
++  generatedBy                 String?   // User ID or "SYSTEM"
++  createdAt                   DateTime  @default(now())
++  updatedAt                   DateTime  @updatedAt
++}

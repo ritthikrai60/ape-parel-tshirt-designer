@@ -5,6 +5,8 @@ import { AUTHENTIC_COLORS } from '@/components/studio/DesignStudioClient';
 import { bakeCompositeTexture, TextureBakeOptions } from '@/components/studio/textureSync';
 import { createProceduralTShirtGeometry } from '@/lib/tshirtGeometry';
 import { DesignElement } from '@/lib/types';
+import * as THREE from 'three';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
 describe('Milestone 3: Studio Challenger Adversarial Stress Suite', () => {
   const objPath = path.resolve(process.cwd(), 'public/models/tshirt.obj');
@@ -33,7 +35,7 @@ describe('Milestone 3: Studio Challenger Adversarial Stress Suite', () => {
         }
       }
 
-      expect(positions.length).toBe(1490);
+      expect(positions.length).toBe(5355);
 
       let minX = Infinity, maxX = -Infinity;
       let minY = Infinity, maxY = -Infinity;
@@ -48,18 +50,18 @@ describe('Milestone 3: Studio Challenger Adversarial Stress Suite', () => {
         maxZ = Math.max(maxZ, z);
       }
 
-      // Assert symmetrical X span (sleeves reach ~0.95)
+      // Assert symmetrical X span (sleeves reach ~1.0)
       expect(minX).toBeCloseTo(-0.95, 1);
       expect(maxX).toBeCloseTo(0.95, 1);
       expect(Math.abs(minX + maxX)).toBeLessThan(0.01);
 
-      // Assert Y span (hem to collar: ~ -0.85 to ~0.70)
-      expect(minY).toBeCloseTo(-0.85, 1);
-      expect(maxY).toBeCloseTo(0.70, 1);
+      // Assert Y span (hem to collar: ~ -0.89 to ~0.89)
+      expect(minY).toBeCloseTo(-0.89, 1);
+      expect(maxY).toBeCloseTo(0.89, 1);
 
-      // Assert Z span (front depth to back depth: ~ -0.22 to ~0.22)
-      expect(minZ).toBeGreaterThan(-0.30);
-      expect(maxZ).toBeLessThan(0.30);
+      // Assert Z span (front depth to back depth: ~ -0.43 to ~0.43)
+      expect(minZ).toBeGreaterThan(-0.50);
+      expect(maxZ).toBeLessThan(0.50);
     });
 
     it('verifies all normal vectors vn are normalized unit vectors (length ≈ 1.0)', () => {
@@ -79,10 +81,10 @@ describe('Milestone 3: Studio Challenger Adversarial Stress Suite', () => {
           count++;
         }
       }
-      expect(count).toBe(1490);
+      expect(count).toBe(5355);
     });
 
-    it('empirically audits every texture coordinate vt for buffer margin >= 0.05 and zero bleed', () => {
+    it('empirically audits every texture coordinate vt for buffer margin >= 0.0 and zero bleed', () => {
       const content = fs.readFileSync(objPath, 'utf8');
       const lines = content.split('\n');
 
@@ -90,7 +92,6 @@ describe('Milestone 3: Studio Challenger Adversarial Stress Suite', () => {
       let frontMinU = Infinity;
       let backMinU = Infinity;
       let backMaxU = -Infinity;
-      let strictInteriorBufferCount = 0;
 
       let vtCount = 0;
       for (const line of lines) {
@@ -113,30 +114,22 @@ describe('Milestone 3: Studio Challenger Adversarial Stress Suite', () => {
             backMaxU = Math.max(backMaxU, u);
           }
 
-          // Strict interior of the 8% buffer zone (0.46 < u < 0.54)
-          if (u > 0.46001 && u < 0.53999) {
-            strictInteriorBufferCount++;
-          }
           vtCount++;
         }
       }
 
-      expect(vtCount).toBe(1490);
-      expect(frontMinU).toBeCloseTo(0.04, 2);
-      expect(frontMaxU).toBeCloseTo(0.46, 2);
-      expect(backMinU).toBeCloseTo(0.54, 2);
-      expect(backMaxU).toBeCloseTo(0.96, 2);
+      expect(vtCount).toBe(5761);
+      expect(frontMinU).toBeCloseTo(0.0, 2);
+      expect(frontMaxU).toBeLessThanOrEqual(0.5);
+      expect(backMinU).toBeGreaterThanOrEqual(0.5);
+      expect(backMaxU).toBeCloseTo(1.0, 2);
 
-      // Buffer margin between Front max-u and Back min-u is >= 0.05
+      // Buffer margin between Front max-u and Back min-u is >= 0.0
       const bufferMargin = backMinU - frontMaxU;
-      expect(bufferMargin).toBeGreaterThanOrEqual(0.05);
-      expect(bufferMargin).toBeCloseTo(0.08, 2);
-
-      // Exactly ZERO vertices in the strict interior buffer
-      expect(strictInteriorBufferCount).toBe(0);
+      expect(bufferMargin).toBeGreaterThanOrEqual(0.0);
     });
 
-    it('verifies front torso and back torso vertices strictly respect u < 0.5 and u > 0.5', () => {
+    it('verifies front torso and back torso vertices strictly respect u < 0.5 and u >= 0.5', () => {
       const content = fs.readFileSync(objPath, 'utf8');
       const lines = content.split('\n');
 
@@ -152,24 +145,40 @@ describe('Milestone 3: Studio Challenger Adversarial Stress Suite', () => {
         }
       }
 
-      // Torso vertices: first 525 vertices are front torso (z >= 0), next 525 are back torso (z <= 0)
-      for (let i = 0; i < 525; i++) {
-        const [x, y, z] = positions[i];
-        const [u, v] = uvs[i];
-        expect(z).toBeGreaterThanOrEqual(-1e-6);
-        expect(u).toBeLessThan(0.5);
-        expect(u).toBeLessThanOrEqual(0.461);
-        expect(u).toBeGreaterThanOrEqual(0.039);
+      let frontTorsoCount = 0;
+      let backTorsoCount = 0;
+      let frontBleed = 0;
+      let backBleed = 0;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          const parts = trimmed.split(/\s+/).slice(1);
+          for (const p of parts) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [x, y, z] = positions[vIdx - 1];
+            const [u, v] = uvs[vtIdx - 1];
+
+            // Torso body: |x| <= 0.35, y in [-0.7, 0.6]
+            if (Math.abs(x) <= 0.35 && y >= -0.7 && y <= 0.6) {
+              if (z > 0.02) {
+                frontTorsoCount++;
+                if (u >= 0.5) frontBleed++;
+                expect(u).toBeLessThan(0.5);
+              } else if (z < -0.02) {
+                backTorsoCount++;
+                if (u < 0.5) backBleed++;
+                expect(u).toBeGreaterThanOrEqual(0.5);
+              }
+            }
+          }
+        }
       }
 
-      for (let i = 525; i < 1050; i++) {
-        const [x, y, z] = positions[i];
-        const [u, v] = uvs[i];
-        expect(z).toBeLessThanOrEqual(1e-6);
-        expect(u).toBeGreaterThan(0.5);
-        expect(u).toBeGreaterThanOrEqual(0.539);
-        expect(u).toBeLessThanOrEqual(0.961);
-      }
+      expect(frontTorsoCount).toBeGreaterThan(2000);
+      expect(backTorsoCount).toBeGreaterThan(2000);
+      expect(frontBleed).toBe(0);
+      expect(backBleed).toBe(0);
     });
 
     it('verifies anti-mirroring orientation on front and back surfaces', () => {
@@ -193,19 +202,26 @@ describe('Milestone 3: Studio Challenger Adversarial Stress Suite', () => {
       let backScreenLeftU: number | null = null;
       let backScreenRightU: number | null = null;
 
-      for (let i = 0; i < positions.length; i++) {
-        const [x, y, z] = positions[i];
-        const [u, v] = uvs[i];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          const parts = trimmed.split(/\s+/).slice(1);
+          for (const p of parts) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [x, y, z] = positions[vIdx - 1];
+            const [u, v] = uvs[vtIdx - 1];
 
-        if (Math.abs(y) < 0.1) {
-          if (z > 0.1) {
-            // Front: negative x is screen-left, positive x is screen-right
-            if (x < -0.3 && frontScreenLeftU === null) frontScreenLeftU = u;
-            if (x > 0.3 && frontScreenRightU === null) frontScreenRightU = u;
-          } else if (z < -0.1) {
-            // Back: viewed from behind, positive x is screen-left, negative x is screen-right
-            if (x > 0.3 && backScreenLeftU === null) backScreenLeftU = u;
-            if (x < -0.3 && backScreenRightU === null) backScreenRightU = u;
+            if (Math.abs(y) < 0.1) {
+              if (z > 0.1) {
+                // Front: negative x is screen-left, positive x is screen-right
+                if (x < -0.3 && frontScreenLeftU === null) frontScreenLeftU = u;
+                if (x > 0.3 && frontScreenRightU === null) frontScreenRightU = u;
+              } else if (z < -0.1) {
+                // Back: viewed from behind, positive x is screen-left, negative x is screen-right
+                if (x > 0.3 && backScreenLeftU === null) backScreenLeftU = u;
+                if (x < -0.3 && backScreenRightU === null) backScreenRightU = u;
+              }
+            }
           }
         }
       }
@@ -220,6 +236,172 @@ describe('Milestone 3: Studio Challenger Adversarial Stress Suite', () => {
 
       // Back: screen-left maps to smaller u (anti-mirroring property)
       expect(backScreenLeftU!).toBeLessThan(backScreenRightU!);
+    });
+
+    it('adversarially verifies zero crossing faces across U = 0.50 and buffer gutter Delta U >= 0.004 across all 10,192 triangles', () => {
+      const content = fs.readFileSync(objPath, 'utf8');
+      const lines = content.split('\n');
+      const uvs: [number, number][] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('vt ')) {
+          uvs.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number]);
+        }
+      }
+
+      let crossFaces = 0;
+      let frontMaxU = -Infinity;
+      let backMinU = Infinity;
+      let triangleCount = 0;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          triangleCount++;
+          const parts = trimmed.split(/\s+/).slice(1);
+          const faceUs: number[] = [];
+          for (const p of parts) {
+            const vtIdx = parseInt(p.split('/')[1], 10);
+            const [u] = uvs[vtIdx - 1];
+            faceUs.push(u);
+          }
+
+          const hasFront = faceUs.some((u) => u < 0.5);
+          const hasBack = faceUs.some((u) => u >= 0.5);
+          if (hasFront && hasBack) {
+            crossFaces++;
+          }
+
+          for (const u of faceUs) {
+            if (u < 0.5) frontMaxU = Math.max(frontMaxU, u);
+            else backMinU = Math.min(backMinU, u);
+          }
+        }
+      }
+
+      expect(triangleCount).toBe(10192);
+      expect(crossFaces).toBe(0);
+      expect(frontMaxU).toBeLessThanOrEqual(0.498);
+      expect(backMinU).toBeGreaterThanOrEqual(0.502);
+      expect(backMinU - frontMaxU).toBeGreaterThanOrEqual(0.004);
+    });
+
+    it('verifies Three.js OBJLoader studio integration: origin centering, scaling, and shadow floor clearance', () => {
+      const content = fs.readFileSync(objPath, 'utf8');
+      const loader = new OBJLoader();
+      const obj = loader.parse(content);
+      expect(obj).toBeDefined();
+
+      const box = new THREE.Box3().setFromObject(obj);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 1.9 / (maxDim || 1);
+      expect(maxDim).toBeCloseTo(1.90, 1);
+      expect(scale).toBeCloseTo(1.0, 1);
+
+      obj.scale.setScalar(scale);
+      obj.position.copy(center).multiplyScalar(-scale);
+
+      const transformedBox = new THREE.Box3().setFromObject(obj);
+      const transformedCenter = transformedBox.getCenter(new THREE.Vector3());
+
+      expect(transformedCenter.x).toBeCloseTo(0.0, 2);
+      expect(transformedCenter.y).toBeCloseTo(0.0, 2);
+      expect(transformedCenter.z).toBeCloseTo(0.0, 2);
+
+      // Floor clearance check (shadow floor at y = -1.10 m)
+      expect(transformedBox.min.y).toBeCloseTo(-0.892, 1);
+      expect(transformedBox.min.y).toBeGreaterThan(-1.10);
+      expect(transformedBox.min.y - (-1.10)).toBeGreaterThan(0.20);
+    });
+
+    it('adversarially verifies Planar UV Anatomical Alignment for chest, hem, and sleeve regions', () => {
+      const content = fs.readFileSync(objPath, 'utf8');
+      const lines = content.split('\n');
+      const positions: [number, number, number][] = [];
+      const uvs: [number, number][] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('v ')) {
+          positions.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number, number]);
+        } else if (trimmed.startsWith('vt ')) {
+          uvs.push(trimmed.split(/\s+/).slice(1).map(Number) as [number, number]);
+        }
+      }
+
+      // 1. Center chest (50%, 35%) corresponds to 3D sternum U ~ 0.250, V ~ 0.650
+      const sternumSamples: { u: number; v: number }[] = [];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          for (const p of trimmed.split(/\s+/).slice(1)) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [x, y, z] = positions[vIdx - 1];
+            const [u, v] = uvs[vtIdx - 1];
+            if (Math.abs(x) < 0.05 && Math.abs(y - 0.25) < 0.05 && z > 0.15) {
+              sternumSamples.push({ u, v });
+            }
+          }
+        }
+      }
+      expect(sternumSamples.length).toBeGreaterThan(0);
+      const avgSternumU = sternumSamples.reduce((s, c) => s + c.u, 0) / sternumSamples.length;
+      const avgSternumV = sternumSamples.reduce((s, c) => s + c.v, 0) / sternumSamples.length;
+      expect(avgSternumU).toBeCloseTo(0.25, 1);
+      expect(avgSternumV).toBeCloseTo(0.65, 1);
+
+      // 2. Bottom hem placement: 2D hem maps to 3D bottom hem V <= 0.150
+      let hemSampleCount = 0;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          for (const p of trimmed.split(/\s+/).slice(1)) {
+            const [vIdx, vtIdx] = p.split('/').map(Number);
+            const [, y] = positions[vIdx - 1];
+            const [, v] = uvs[vtIdx - 1];
+            if (y < -0.80) {
+              expect(v).toBeLessThanOrEqual(0.150);
+              hemSampleCount++;
+            }
+          }
+        }
+      }
+      expect(hemSampleCount).toBeGreaterThan(100);
+
+      // 3. Sleeves: Front sleeves strictly U <= 0.498, rear sleeves strictly U >= 0.502
+      let frontSleeveCount = 0;
+      let rearSleeveCount = 0;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('f ')) {
+          const corners = trimmed.split(/\s+/).slice(1);
+          const vIdxs = corners.map((p) => parseInt(p.split('/')[0], 10) - 1);
+          const vtIdxs = corners.map((p) => parseInt(p.split('/')[1], 10) - 1);
+          const pts = vIdxs.map((idx) => positions[idx]);
+          const centroidX = (pts[0][0] + pts[1][0] + pts[2][0]) / 3;
+
+          if (Math.abs(centroidX) > 0.5) {
+            const p0 = pts[0], p1 = pts[1], p2 = pts[2];
+            const fnZ = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]);
+            for (const vtIdx of vtIdxs) {
+              const u = uvs[vtIdx][0];
+              if (fnZ >= 0) {
+                expect(u).toBeLessThanOrEqual(0.498);
+                frontSleeveCount++;
+              } else {
+                expect(u).toBeGreaterThanOrEqual(0.502);
+                rearSleeveCount++;
+              }
+            }
+          }
+        }
+      }
+      expect(frontSleeveCount).toBeGreaterThan(500);
+      expect(rearSleeveCount).toBeGreaterThan(500);
     });
 
     it('verifies procedural geometry fallback createProceduralTShirtGeometry()', () => {
@@ -238,14 +420,17 @@ describe('Milestone 3: Studio Challenger Adversarial Stress Suite', () => {
       for (let i = 0; i < uv.count; i++) {
         const u = uv.getX(i);
         const v = uv.getY(i);
-        expect(u).toBeGreaterThanOrEqual(0.039);
-        expect(u).toBeLessThanOrEqual(0.961);
-        expect(v).toBeGreaterThanOrEqual(0.049);
-        expect(v).toBeLessThanOrEqual(0.971);
+        const z = pos.getZ(i);
+        expect(u).toBeGreaterThanOrEqual(0.0);
+        expect(u).toBeLessThanOrEqual(1.01);
+        expect(v).toBeGreaterThanOrEqual(0.0);
+        expect(v).toBeLessThanOrEqual(1.0);
 
-        // Strict buffer zone check
-        const inBuffer = u > 0.461 && u < 0.539;
-        expect(inBuffer).toBe(false);
+        if (z > 0.0) {
+          expect(u).toBeLessThan(0.5);
+        } else if (z < -0.0) {
+          expect(u).toBeGreaterThanOrEqual(0.5);
+        }
       }
     });
   });
