@@ -62,7 +62,7 @@ export default async function CreatorPortalRootPage() {
 
           <p className="text-mutedGray font-sans text-sm sm:text-base leading-relaxed">
             อัปโหลดผลงานภาพวาด ลายสกรีน และมาสคอตเข้าสู่ 3D Studio กำหนดราคาลิขสิทธิ์ต่อชิ้นด้วยตัวเอง
-            รับส่วนแบ่งการขายสูงสุด 85% พร้อมระบบบัญชีโปร่งใสและหนังสือรับรองภาษีหัก ณ ที่จ่าย 50 ทวิ ดิจิทัล
+            รับส่วนแบ่งการขายสูงสุด 85% พร้อมระบบบันทึกบัญชีโปร่งใสและใบสรุปยอดการจ่ายเงินค่าลิขสิทธิ์ (Royalty Settlement Statement)
           </p>
 
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -125,10 +125,10 @@ export default async function CreatorPortalRootPage() {
               <FileText className="w-5 h-5" />
             </div>
             <h3 className="font-sans font-bold text-lg text-ink">
-              3. เอกสารภาษีหัก ณ ที่จ่าย 50 ทวิ ดิจิทัล (Tax-Compliant)
+              3. ใบสรุปยอดและรายการหักภาษีตามจริง (Royalty Settlement Statement)
             </h3>
             <p className="text-xs text-mutedGray leading-relaxed font-sans">
-              แพลตฟอร์มจัดการหักภาษี ณ ที่จ่ายและออกเอกสาร 50 ทวิ ดิจิทัลให้โดยอัตโนมัติเมื่อมีการเบิกจ่ายเงิน (Payout) สามารถดาวน์โหลดเพื่อใช้ยื่นภาษีเงินได้บุคคลธรรมดาได้ทันที
+              แพลตฟอร์มคำนวณและบันทึกรายการหักภาษี ณ ที่จ่าย 3% ตามมาตรา 40(3) อย่างโปร่งใส พร้อมออกใบสรุปยอดการจ่ายเงินค่าลิขสิทธิ์ (Payment Advice) ให้ทุกรอบการเบิกจ่าย
             </p>
           </div>
 

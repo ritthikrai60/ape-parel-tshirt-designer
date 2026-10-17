@@ -370,7 +370,7 @@ export async function sendOrderConfirmationReceiptEmail(order: {
       <div class="card">
         <div class="header">
           <h1>APE-PAREL</h1>
-          <p style="margin: 4px 0 0; font-size: 12px; color: #C5A059;">OFFICIAL PAYMENT RECEIPT & ESCROW CONFIRMATION</p>
+          <p style="margin: 4px 0 0; font-size: 12px; color: #C5A059;">ORDER PAYMENT CONFIRMATION & ESCROW NOTIFICATION</p>
         </div>
         <div class="body">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">

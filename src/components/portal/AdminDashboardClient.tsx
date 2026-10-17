@@ -1172,7 +1172,7 @@ export function AdminDashboardClient({
                   <div>
                     <h3 className="font-bold text-ink text-sm">3. Finance & Compliance</h3>
                     <p className="text-[11px] text-mutedGray mt-0.5 font-sans leading-relaxed">
-                      อนุมัติการเบิกจ่ายครีเอเตอร์ หักภาษี ณ ที่จ่าย 3% ออกใบ 50 ทวิ และบัญชีแยกประเภทคู่
+                      อนุมัติการเบิกจ่ายครีเอเตอร์ หักภาษี ณ ที่จ่าย 3% สรุปรายการบัญชี และบันทึกแยกประเภทคู่
                     </p>
                   </div>
                   <div className="bg-paper p-2 rounded-lg border border-borderCol/60 text-[10px] font-mono text-mutedGray space-y-1">
@@ -1182,7 +1182,7 @@ export function AdminDashboardClient({
                       <span>&rarr;</span>
                       <span>หักภาษี 3%</span>
                       <span>&rarr;</span>
-                      <span>ออกใบ 50 ทวิ</span>
+                      <span>สรุปยอดภาษี</span>
                     </div>
                   </div>
                 </div>
@@ -1193,7 +1193,7 @@ export function AdminDashboardClient({
                     onClick={() => setActiveTab('payouts')}
                     className="w-full py-1.5 px-2.5 bg-paper hover:bg-ink hover:text-paper text-ink border border-borderCol rounded font-mono text-xs font-semibold flex items-center justify-between transition-colors"
                   >
-                    <span>เบิกจ่าย & 50 ทวิ (Payouts)</span>
+                    <span>เบิกจ่าย & รายการหักภาษี (Payouts)</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                   <button
@@ -1460,7 +1460,7 @@ export function AdminDashboardClient({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: PILLAR B - CREATOR PAYOUTS & 50-TWI TAX SETTLEMENT */}
+      {/* TAB 3: PILLAR B - CREATOR PAYOUTS & ROYALTY TAX SETTLEMENT */}
       {/* ========================================================================= */}
       {activeTab === 'payouts' && (
         <div className="space-y-6">
@@ -1602,7 +1602,7 @@ export function AdminDashboardClient({
                                 onClick={() => handleUpdatePayoutStatus(p.id, 'MARK_PAID')}
                                 className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px]"
                               >
-                                Mark Paid &amp; 50-Twi
+                                Mark Paid &amp; Statement
                               </button>
                             )}
 
@@ -1612,7 +1612,7 @@ export function AdminDashboardClient({
                                 className="px-2 py-1 bg-paper border border-borderCol text-ink hover:bg-paper-dark rounded text-[10px] font-bold flex items-center space-x-1"
                               >
                                 <FileText className="w-3 h-3 text-warm" />
-                                <span>View 50-Twi</span>
+                                <span>View Statement</span>
                               </button>
                             )}
                           </div>
@@ -2532,7 +2532,7 @@ export function AdminDashboardClient({
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 4: 50-TWI CERTIFICATE VIEWER (Pillar B) */}
+      {/* MODAL 4: ROYALTY SETTLEMENT STATEMENT VIEWER (Pillar B) */}
       {/* ========================================================================= */}
       {selectedTwiPayout && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
@@ -2541,7 +2541,7 @@ export function AdminDashboardClient({
               <div className="flex items-center space-x-2">
                 <FileText className="w-5 h-5 text-warm" />
                 <span className="font-bold text-ink text-sm">
-                  หนังสือรับรองการหักภาษี ณ ที่จ่าย (มาตรา 50 ทวิ)
+                  ใบสรุปยอดการจ่ายเงินค่าลิขสิทธิ์และรายการหักภาษี (Royalty Settlement Statement)
                 </span>
               </div>
               <button onClick={() => setSelectedTwiPayout(null)} className="text-mutedGray hover:text-ink">
@@ -2551,14 +2551,14 @@ export function AdminDashboardClient({
 
             <div className="p-4 bg-paper-light border border-borderCol rounded space-y-3">
               <div className="flex justify-between border-b border-borderCol/60 pb-2 text-[10px] text-mutedGray">
-                <span>แบบ ภ.ง.ด. 3 // กรมสรรพากร</span>
-                <span>เลขที่เอกสาร: {selectedTwiPayout.certificate50TwiUrl || `50TWI-${selectedTwiPayout.referenceNumber}`}</span>
+                <span>บันทึกการจ่ายค่าลิขสิทธิ์ // APE-PAREL Settlement</span>
+                <span>เลขที่อ้างอิง: {selectedTwiPayout.certificate50TwiUrl || `REF-PAYOUT-${selectedTwiPayout.referenceNumber}`}</span>
               </div>
 
               <div>
-                <span className="text-[10px] text-mutedGray uppercase block">ผู้มีหน้าที่หักภาษี ณ ที่จ่าย:</span>
-                <span className="font-bold text-ink">บริษัท เอป-พาเรล (ไทยแลนด์) จำกัด (สำนักงานใหญ่)</span>
-                <span className="text-[10px] text-mutedGray block">เลขประจำตัวผู้เสียภาษี: 0105569001234</span>
+                <span className="text-[10px] text-mutedGray uppercase block">ผู้ดำเนินการจ่ายเงิน (Platform Disbursing Agent):</span>
+                <span className="font-bold text-ink">APE-PAREL Platform Settlement Services</span>
+                <span className="text-[10px] text-mutedGray block">ระบบตัวกลางเชื่อมต่อธุรกรรมและบัญชีค่าลิขสิทธิ์</span>
               </div>
 
               <div>
@@ -2576,7 +2576,7 @@ export function AdminDashboardClient({
                       <th>ประเภทเงินได้พึงประเมิน</th>
                       <th>วันจ่ายเงิน</th>
                       <th>จำนวนเงินที่จ่าย</th>
-                      <th>ภาษีที่หักและนำส่ง (3%)</th>
+                      <th>ภาษีที่หัก (3%)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2594,6 +2594,10 @@ export function AdminDashboardClient({
                 <span>ยอดจ่ายสุทธิ (Net Disbursed):</span>
                 <span>฿{selectedTwiPayout.netAmount.toLocaleString()} บาท</span>
               </div>
+
+              <p className="text-[10px] text-mutedGray italic pt-2 border-t border-borderCol/60">
+                * เอกสารนี้เป็นบันทึกสรุปการจ่ายเงินค่าลิขสิทธิ์และยอดหักภาษี 3% ของแพลตฟอร์ม หนังสือรับรองภาษีหัก ณ ที่จ่ายอย่างเป็นทางการจะออกตามรอบบัญชีจริงเมื่อผู้รับเงินยืนยันข้อมูลนิติบุคคล/บุคคลธรรมดาครบถ้วน
+              </p>
             </div>
 
             <div className="flex items-center justify-end space-x-2 pt-2">
@@ -2601,7 +2605,7 @@ export function AdminDashboardClient({
                 onClick={() => setSelectedTwiPayout(null)}
                 className="px-4 py-1.5 bg-ink text-paper rounded font-mono text-xs font-bold hover:bg-ink/90 transition-colors"
               >
-                Close Certificate
+                Close Statement
               </button>
             </div>
           </div>

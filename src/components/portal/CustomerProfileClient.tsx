@@ -468,7 +468,7 @@ export function CustomerProfileClient() {
                 type="text"
                 value={form.billingName}
                 onChange={(e) => setForm({ ...form, billingName: e.target.value })}
-                placeholder="เช่น บริษัท เอพ-พาเรล จำกัด (สำนักงานใหญ่)"
+                placeholder="เช่น บริษัท ตัวอย่าง จำกัด (สำนักงานใหญ่)"
                 className="w-full px-3.5 py-2.5 bg-paper border border-borderCol rounded-xl text-xs font-mono text-ink focus:border-warm focus:outline-none"
               />
             </div>

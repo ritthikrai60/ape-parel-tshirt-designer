@@ -319,7 +319,7 @@ export const CreatorJournalClient: React.FC<CreatorJournalClientProps> = ({
             className="px-3.5 py-2 bg-paper hover:bg-paper-dark border border-borderCol text-ink font-mono text-xs font-bold rounded-lg transition-colors flex items-center space-x-1.5 shadow-sm"
           >
             <FileText className="w-4 h-4 text-warm-dark" />
-            <span>ใบ 50 ทวิ (Digital Tax Slip)</span>
+            <span>ใบสรุปยอด & ภาษี (Settlement Statement)</span>
           </button>
 
           <button
@@ -430,13 +430,13 @@ export const CreatorJournalClient: React.FC<CreatorJournalClientProps> = ({
           </div>
           <div className="flex items-center justify-between pt-0.5">
             <p className="font-mono text-[11px] text-mutedGray">
-              อัตราภาษี 3% (มาตรา 50 ทวิ)
+              อัตราภาษี 3% (มาตรา 40(3))
             </p>
             <button
               onClick={() => setIsTaxSlipModalOpen(true)}
               className="text-[11px] font-mono text-ink underline font-bold hover:text-warm-dark"
             >
-              ดูใบ 50 ทวิ
+              ดูใบสรุปยอดภาษี
             </button>
           </div>
         </div>
@@ -767,14 +767,14 @@ export const CreatorJournalClient: React.FC<CreatorJournalClientProps> = ({
             <div className="flex justify-between items-start border-b border-borderCol pb-4">
               <div className="space-y-1">
                 <div className="inline-flex items-center space-x-1.5 font-mono text-[10px] bg-warm/30 text-ink px-2 py-0.5 rounded border border-warm/50 font-bold">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>หนังสือรับรองการหักภาษี ณ ที่จ่าย</span>
+                  <FileText className="w-3.5 h-3.5 text-warm-dark" />
+                  <span>ใบสรุปยอดการจ่ายเงินค่าลิขสิทธิ์ (Royalty Settlement Statement)</span>
                 </div>
                 <h2 id="tax-modal-title" className="text-xl font-black text-ink uppercase">
                   {taxSlip.formName}
                 </h2>
                 <p className="font-mono text-xs text-mutedGray">
-                  ตามมาตรา 50 ทวิ แห่งประมวลรัษฎากร (Thai Revenue Department Form 50 Tawi)
+                  รายการสรุปยอดการจ่ายเงินค่าลิขสิทธิ์และรายการคำนวณภาษีหัก ณ ที่จ่าย 3% ตามมาตรา 40(3)
                 </p>
               </div>
               <button
@@ -791,12 +791,12 @@ export const CreatorJournalClient: React.FC<CreatorJournalClientProps> = ({
               <div className="bg-paper-dark/30 p-4 rounded-xl border border-borderCol/80 space-y-2">
                 <div className="flex items-center space-x-1.5 font-bold text-ink">
                   <Building2 className="w-4 h-4 text-warm-dark" />
-                  <span>ผู้มีหน้าที่หักภาษี ณ ที่จ่าย (Payer):</span>
+                  <span>ผู้ดำเนินการจ่ายเงิน (Platform Disbursing Agent):</span>
                 </div>
                 <div className="space-y-1 text-mutedGray text-[11px]">
                   <p className="font-bold text-ink">{taxSlip.payer.companyNameTh}</p>
                   <p>{taxSlip.payer.companyNameEn}</p>
-                  <p>เลขประจำตัวผู้เสียภาษี: <span className="text-ink font-bold">{taxSlip.payer.taxId}</span></p>
+                  <p>รหัสอ้างอิงระบบ: <span className="text-ink font-bold">{taxSlip.payer.taxId}</span></p>
                   <p className="leading-relaxed">{taxSlip.payer.address}</p>
                 </div>
               </div>
@@ -863,19 +863,25 @@ export const CreatorJournalClient: React.FC<CreatorJournalClientProps> = ({
                 <span className="text-mutedGray">สถานะเอกสาร:</span>
                 <span className="text-emerald-700 font-bold flex items-center space-x-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>รับรองความถูกต้องครบถ้วนสมบูรณ์ (VERIFIED)</span>
+                  <span>บันทึกบัญชีสมบูรณ์ (LEDGER RECORDED)</span>
                 </span>
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                <span className="text-mutedGray">รหัสตรวจสอบความถูกต้องดิจิทัล (Ledger Digest):</span>
+                <span className="text-mutedGray">รหัสอ้างอิงรายการบัญชี (Settlement Reference):</span>
                 <span className="text-ink font-bold text-[11px] select-all break-all">
                   {taxSlip.auditDigest}
                 </span>
               </div>
               <div className="flex items-center justify-between text-[11px] text-mutedGray border-t border-borderCol/60 pt-2">
                 <span suppressHydrationWarning>วันที่ออกเอกสาร: {formatDate(taxSlip.issuedAt)}</span>
-                <span>ape-parel Authoritative Royalty & Tax Engine</span>
+                <span>APE-PAREL Platform Settlement Services</span>
               </div>
+            </div>
+
+            {/* Honest Disclaimer */}
+            <div className="p-3 bg-warm/10 rounded-xl border border-warm/30 text-[10px] font-mono text-mutedGray leading-relaxed">
+              {taxSlip.disclaimer ||
+                '* เอกสารนี้เป็นใบสรุปยอดการจ่ายเงินค่าลิขสิทธิ์และรายการหักภาษี ณ ที่จ่ายเพื่อเป็นหลักฐานทางบัญชีของระบบ สำหรับหนังสือรับรองการหักภาษี ณ ที่จ่าย (ใบ 50 ทวิ) อย่างเป็นทางการ จะออกและนำส่งตามรอบบัญชีจริงเมื่อได้รับข้อมูลยืนยันตัวตนครบถ้วน'}
             </div>
 
             {/* Footer Buttons */}

@@ -50,6 +50,7 @@ export interface FiftyTawiSummary {
   auditDigest: string;
   issuedAt: string;
   status: 'VERIFIED';
+  disclaimer?: string;
 }
 
 export interface LedgerAuditSummary {
@@ -62,7 +63,8 @@ export interface LedgerAuditSummary {
 }
 
 /**
- * Calculate accurate 3% Withholding Tax (WHT) according to Thai Revenue Department rules
+ * Calculate accurate 3% Withholding Tax (WHT) on art licensing / royalties
+ * Section 40(3) Art Licensing Royalties
  * WHT = Gross * 0.03
  * Net = Gross - WHT
  */
@@ -92,7 +94,7 @@ export function calculateWithholdingTax(
 }
 
 /**
- * Generate official digital 50 Tawi (หนังสือรับรองการหักภาษี ณ ที่จ่าย) tax slip summary
+ * Generate transparent royalty payment settlement statement (ใบสรุปยอดการจ่ายเงินค่าลิขสิทธิ์และรายการหักภาษี)
  */
 export function generate50TawiSummary(
   creator: {
@@ -123,8 +125,8 @@ export function generate50TawiSummary(
     payoutDetails: (creator?.payoutDetails && creator.payoutDetails.trim()) || null,
   };
 
-  // Deterministic verifiable cryptographic ledger digest
-  const seed = `50TAWI-${safeCreator.id}-${tax.grossAmount}-${tax.taxAmount}-${issuedIso.slice(0, 10)}`;
+  // Deterministic verifiable ledger reference
+  const seed = `SETTLEMENT-${safeCreator.id}-${tax.grossAmount}-${tax.taxAmount}-${issuedIso.slice(0, 10)}`;
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
     hash = (hash << 5) - hash + seed.charCodeAt(i);
@@ -132,21 +134,21 @@ export function generate50TawiSummary(
   }
   const hexHash = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
   const creatorPrefix = safeCreator.id.padEnd(6, 'X').slice(0, 6).toUpperCase();
-  const auditDigest = `SHA256:50TW-${creatorPrefix}-${hexHash}-${gregorianYear}`;
+  const auditDigest = `REF:ROYALTY-${creatorPrefix}-${hexHash}-${gregorianYear}`;
 
   return {
-    formName: 'หนังสือรับรองการหักภาษี ณ ที่จ่าย (ตามมาตรา 50 ทวิ แห่งประมวลรัษฎากร)',
+    formName: 'ใบสรุปยอดการจ่ายเงินค่าลิขสิทธิ์และรายการหักภาษี (Royalty Settlement Statement / Payment Advice)',
     payer: {
-      companyNameTh: 'บริษัท เอพ-พาเรล (ไทยแลนด์) จำกัด',
-      companyNameEn: 'ape-parel (Thailand) Co., Ltd.',
-      taxId: '0105566099881',
-      address: '123/45 อาคารสตรีททาวเวอร์ ถนนสุขุมวิท แขวงคลองเตยเหนือ เขตวัฒนา กรุงเทพมหานคร 10110',
+      companyNameTh: 'ระบบแพลตฟอร์ม APE-PAREL (Platform Settlement Services)',
+      companyNameEn: 'APE-PAREL Platform Settlement Services',
+      taxId: 'PLATFORM-SETTLEMENT',
+      address: 'บริการตัวกลางการจัดการลิขสิทธิ์และธุรกรรมคำสั่งซื้อ APE-PAREL',
     },
     payee: {
       creatorId: safeCreator.id,
       displayName: safeCreator.displayName,
       slug: safeCreator.slug,
-      taxOrPayoutId: safeCreator.payoutDetails || `TAX-ID-${safeCreator.id.slice(0, 8).toUpperCase()}`,
+      taxOrPayoutId: safeCreator.payoutDetails || `REF-ID-${safeCreator.id.slice(0, 8).toUpperCase()}`,
     },
     incomeCategory: {
       section: 'มาตรา 40(3) ค่าแห่งลิขสิทธิ์หรือสิทธิอย่างอื่น (Art Licensing Royalties)',
@@ -157,6 +159,8 @@ export function generate50TawiSummary(
     auditDigest,
     issuedAt: issuedIso,
     status: 'VERIFIED',
+    disclaimer:
+      '* เอกสารนี้เป็นใบสรุปยอดการจ่ายเงินค่าลิขสิทธิ์และรายการหักภาษี ณ ที่จ่ายเพื่อเป็นหลักฐานทางบัญชีของระบบ สำหรับหนังสือรับรองการหักภาษี ณ ที่จ่าย (ใบ 50 ทวิ) อย่างเป็นทางการ จะออกและนำส่งตามรอบบัญชีจริงเมื่อได้รับข้อมูลยืนยันตัวตนครบถ้วน',
   };
 }
 

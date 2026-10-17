@@ -202,7 +202,7 @@ describe('Creator Journal, 3% Withholding Tax & Settlement Suite (R1 - R4)', () 
   // SECTION 2: DIGITAL 50 TAWI TAX SLIP SUMMARY GENERATOR
   // ==========================================================================
   describe('2. Digital 50 Tawi (หนังสือรับรองการหักภาษี ณ ที่จ่าย) Generator', () => {
-    it('generates fully populated, legally compliant 50 Tawi summary', () => {
+    it('generates fully populated, transparent royalty settlement summary', () => {
       const testDate = new Date('2026-10-15T10:00:00Z');
       const summary = generate50TawiSummary(
         {
@@ -215,16 +215,16 @@ describe('Creator Journal, 3% Withholding Tax & Settlement Suite (R1 - R4)', () 
         testDate
       );
 
-      // Form header & legal basis
-      expect(summary.formName).toContain('หนังสือรับรองการหักภาษี ณ ที่จ่าย');
-      expect(summary.formName).toContain('50 ทวิ');
+      // Form header & transparent description
+      expect(summary.formName).toContain('ใบสรุปยอดการจ่ายเงินค่าลิขสิทธิ์');
+      expect(summary.formName).toContain('Royalty Settlement Statement');
       expect(summary.status).toBe('VERIFIED');
 
-      // Payer details (ape-parel Thailand)
-      expect(summary.payer.companyNameTh).toBe('บริษัท เอพ-พาเรล (ไทยแลนด์) จำกัด');
-      expect(summary.payer.companyNameEn).toBe('ape-parel (Thailand) Co., Ltd.');
-      expect(summary.payer.taxId).toBe('0105566099881');
-      expect(summary.payer.address).toContain('กรุงเทพมหานคร');
+      // Payer details (Platform settlement service)
+      expect(summary.payer.companyNameTh).toBe('ระบบแพลตฟอร์ม APE-PAREL (Platform Settlement Services)');
+      expect(summary.payer.companyNameEn).toBe('APE-PAREL Platform Settlement Services');
+      expect(summary.payer.taxId).toBe('PLATFORM-SETTLEMENT');
+      expect(summary.payer.address).toContain('APE-PAREL');
 
       // Payee details
       expect(summary.payee.creatorId).toBe('creator_dash_01');
@@ -242,8 +242,8 @@ describe('Creator Journal, 3% Withholding Tax & Settlement Suite (R1 - R4)', () 
       expect(summary.taxCalculation.taxAmount).toBe(300);
       expect(summary.taxCalculation.netAmount).toBe(9700);
 
-      // Verifiable cryptographic ledger digest
-      expect(summary.auditDigest).toMatch(/^SHA256:50TW-CREATO-[0-9A-F]{8}-2026$/);
+      // Verifiable ledger reference
+      expect(summary.auditDigest).toMatch(/^REF:ROYALTY-CREATO-[0-9A-F]{8}-2026$/);
       expect(summary.issuedAt).toBe(testDate.toISOString());
     });
 
@@ -258,7 +258,7 @@ describe('Creator Journal, 3% Withholding Tax & Settlement Suite (R1 - R4)', () 
         500
       );
 
-      expect(summary.payee.taxOrPayoutId).toContain('TAX-ID-CREATOR_');
+      expect(summary.payee.taxOrPayoutId).toContain('REF-ID-CREATOR_');
       expect(summary.taxCalculation.taxAmount).toBe(15);
       expect(summary.taxCalculation.netAmount).toBe(485);
     });
@@ -450,9 +450,9 @@ describe('Creator Journal, 3% Withholding Tax & Settlement Suite (R1 - R4)', () 
       );
 
       expect(journalData.taxSlip).toBeDefined();
-      expect(journalData.taxSlip.payer.taxId).toBe('0105566099881');
+      expect(journalData.taxSlip.payer.taxId).toBe('PLATFORM-SETTLEMENT');
       expect(journalData.taxSlip.payee.slug).toBe('dash-ape');
-      expect(journalData.taxSlip.auditDigest).toContain('SHA256:50TW-');
+      expect(journalData.taxSlip.auditDigest).toContain('REF:ROYALTY-');
       expect(journalData.minThreshold).toBe(MIN_PAYOUT_THRESHOLD_THB);
     });
 
@@ -464,7 +464,7 @@ describe('Creator Journal, 3% Withholding Tax & Settlement Suite (R1 - R4)', () 
       expect(res.status).toBe(200);
       expect(json.summary.slug).toBe('dash-ape');
       expect(json.tax.taxRate).toBe(0.03);
-      expect(json.taxSlip.formName).toContain('50 ทวิ');
+      expect(json.taxSlip.formName).toContain('ใบสรุปยอดการจ่ายเงินค่าลิขสิทธิ์');
       expect(json.minThreshold).toBe(100);
     });
 
@@ -706,7 +706,7 @@ describe('Creator Journal, 3% Withholding Tax & Settlement Suite (R1 - R4)', () 
       expect(summary.taxCalculation.grossAmount).toBe(1000);
       expect(summary.taxCalculation.taxAmount).toBe(30);
       expect(summary.taxCalculation.netAmount).toBe(970);
-      expect(summary.auditDigest).toMatch(/^SHA256:50TW-CREATO-[0-9A-F]{8}-\d{4}$/);
+      expect(summary.auditDigest).toMatch(/^REF:ROYALTY-CREATO-[0-9A-F]{8}-\d{4}$/);
       expect(summary.status).toBe('VERIFIED');
     });
 
@@ -716,7 +716,7 @@ describe('Creator Journal, 3% Withholding Tax & Settlement Suite (R1 - R4)', () 
         500
       );
       // 'c1' padded to 6 chars is 'C1XXXX'
-      expect(summary.auditDigest).toMatch(/^SHA256:50TW-C1XXXX-[0-9A-F]{8}-\d{4}$/);
+      expect(summary.auditDigest).toMatch(/^REF:ROYALTY-C1XXXX-[0-9A-F]{8}-\d{4}$/);
     });
 
     it('clamps excessive tax rate (> 1.0 / 100%) to 1.0 to prevent negative net income', () => {
@@ -878,7 +878,7 @@ describe('Creator Journal, 3% Withholding Tax & Settlement Suite (R1 - R4)', () 
       expect(summary.payee.creatorId).toBe('CREATOR-UNKNOWN');
       expect(summary.payee.displayName).toBe('Creator');
       expect(summary.payee.slug).toBe('creator');
-      expect(summary.payee.taxOrPayoutId).toContain('TAX-ID-CREATOR-');
+      expect(summary.payee.taxOrPayoutId).toContain('REF-ID-CREATOR-');
       expect(summary.taxCalculation.taxAmount).toBe(30);
     });
 
