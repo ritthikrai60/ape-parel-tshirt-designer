@@ -70,9 +70,6 @@ export const Navbar: React.FC = () => {
               PAREL
             </span>
           </Link>
-          <span className="hidden sm:inline-block font-mono text-[10px] uppercase tracking-widest text-mutedGray border border-borderCol px-1.5 py-0.5 rounded">
-            STUDIO // MKT
-          </span>
         </div>
 
         {/* Navigation Links — role-based visibility & localized */}
@@ -157,12 +154,6 @@ export const Navbar: React.FC = () => {
 
         {/* Right side: badges, CTAs, switchers, icons */}
         <div className="flex items-center space-x-1.5 sm:space-x-2.5">
-          {/* Engine status badge — only visible on large desktop (lg:flex) */}
-          <div className="hidden lg:flex items-center space-x-1.5 font-mono text-[11px] text-ink bg-warm/30 border border-warm/50 px-2.5 py-1 rounded">
-            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-            <span>{t.common.engineStatus}</span>
-          </div>
-
           {/* Platform Version Badge */}
           <Link
             href="/changelog"
@@ -383,15 +374,7 @@ export const Navbar: React.FC = () => {
               </button>
 
               <div className="flex items-center justify-between px-2 text-[10px] font-mono text-mutedGray">
-                <span>Engine Status</span>
-                <span className="flex items-center space-x-1 text-emerald-600 font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                  <span>Active</span>
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between px-2 text-[10px] font-mono text-mutedGray pt-1 border-t border-borderCol/40">
-                <span>Platform Version</span>
+                <span>Version</span>
                 <Link
                   href="/changelog"
                   onClick={() => setIsMobileMenuOpen(false)}

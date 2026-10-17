@@ -21,7 +21,6 @@ import { NewsletterSubscribeBox } from './NewsletterSubscribeBox';
 import { CookiePreferencesModal } from '@/components/pdpa/CookiePreferencesModal';
 import { LegalModalViewer, LegalDocType } from '@/components/pdpa/LegalModalViewer';
 import { useSettings } from '@/components/providers/SettingsProvider';
-import { FooterStatCounter } from './FooterStatCounter';
 import { APP_VERSION } from '@/lib/version';
 
 export const Footer: React.FC = () => {
@@ -209,18 +208,13 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Bottom Section: Legal Disclaimer, Live Stat Counter & DBD Registration */}
-          <div className="pt-6 border-t border-borderCol/60 flex flex-col lg:flex-row items-center justify-between gap-4 text-xs font-sans text-mutedGray">
-            <p className="text-[11px] text-mutedGray text-center lg:text-left leading-relaxed max-w-xl">
+          {/* Bottom Section: Legal Disclaimer & Version */}
+          <div className="pt-6 border-t border-borderCol/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-sans text-mutedGray">
+            <p className="text-[11px] text-mutedGray text-center sm:text-left leading-relaxed max-w-xl">
               {t.footer.marketplaceDisclaimer}
             </p>
 
-            {/* Live Platform Visitor Pulse Counter */}
-            <div className="shrink-0 flex items-center justify-center">
-              <FooterStatCounter />
-            </div>
-
-            <div className="flex flex-col items-center lg:items-end font-mono text-[10px] space-y-1 shrink-0">
+            <div className="flex flex-col items-center sm:items-end font-mono text-[10px] space-y-1 shrink-0">
               <div className="flex items-center space-x-2">
                 <span>© {new Date().getFullYear()} APE-PAREL Co., Ltd. {t.footer.rights}</span>
                 <Link
@@ -231,7 +225,7 @@ export const Footer: React.FC = () => {
                   {APP_VERSION}
                 </Link>
               </div>
-              <span className="text-mutedGray/80">DBD e-Commerce Registered • Thai PDPA Compliant</span>
+              <span className="text-mutedGray/80">Custom Streetwear On-Demand</span>
             </div>
           </div>
         </div>

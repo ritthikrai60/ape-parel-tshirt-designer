@@ -12,8 +12,8 @@ export async function generateMetadata({
   params: { certificateNumber: string };
 }): Promise<Metadata> {
   return {
-    title: `Permanent IP License Verification: ${params.certificateNumber} | ape-parel`,
-    description: 'Authoritative decentralized verification of permanent intellectual property rights.',
+    title: `ตรวจสอบใบรับรองลิขสิทธิ์: ${params.certificateNumber} | ape-parel`,
+    description: 'ตรวจสอบความถูกต้องของใบรับรองสิทธิ์การใช้งานภาพกราฟิก APE-PAREL',
   };
 }
 
@@ -39,10 +39,10 @@ export default async function LicenseVerificationPage({
           className="inline-flex items-center space-x-1.5 font-mono text-xs text-mutedGray hover:text-ink transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Marketplace</span>
+          <span>กลับสู่ Marketplace</span>
         </Link>
         <span className="font-mono text-xs text-mutedGray">
-          Network Protocol: <span className="font-bold text-ink">ape-parel PIP Ledger v1.0</span>
+          ใบรับรองสิทธิ์ (Artwork License Certificate)
         </span>
       </div>
 
@@ -198,7 +198,7 @@ export default async function LicenseVerificationPage({
         {/* Certificate Actions */}
         <div className="border-t border-borderCol pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs">
           <div className="text-mutedGray text-[11px]">
-            ape-parel Decentralized IP Protocol &bull; Verified on demand
+            APE-PAREL Artwork License Verification
           </div>
           <div className="flex items-center space-x-3 w-full sm:w-auto">
             <Link
