@@ -1121,9 +1121,9 @@ export const DesignStudioClient: React.FC<DesignStudioClientProps> = ({
   }, [updateSession]);
 
   return (
-    <div className="flex-1 flex flex-col w-full h-full max-h-full overflow-hidden bg-paper">
+    <div className="flex-1 flex flex-col w-full min-h-[calc(100vh-4rem)] bg-paper">
       {/* Studio Toolbar Header */}
-      <div className="sticky top-0 z-30 shrink-0 border-b border-borderCol bg-paper-light/95 backdrop-blur px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+      <div className="sticky top-16 z-30 shrink-0 border-b border-borderCol bg-paper-light/95 backdrop-blur px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
         {/* Left: Garment Name & Benchmark Preset Button */}
         <div className="flex items-center space-x-3">
           <div className="flex flex-col">
@@ -1268,9 +1268,9 @@ export const DesignStudioClient: React.FC<DesignStudioClientProps> = ({
       </div>
 
       {/* Main Studio Body: Canvas / 3D & Configuration Sidebar */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0 h-full">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 lg:h-[calc(100vh-8.5rem)] min-h-[600px]">
         {/* Workspace Canvas / Viewports Area */}
-        <div className="flex-1 flex flex-col relative bg-paper-light border-r border-borderCol overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col relative bg-paper-light border-r border-borderCol overflow-hidden min-h-[480px] lg:min-h-0">
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 h-full w-full relative min-h-0">
             {/* 2D Canvas Panel */}
             {(viewMode === '2D' || viewMode === 'SPLIT') && (

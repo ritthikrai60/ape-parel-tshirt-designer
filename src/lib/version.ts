@@ -19,9 +19,9 @@ export interface ReleaseMilestone {
   changes: ChangelogItem[];
 }
 
-export const APP_VERSION = 'v2.4.0';
+export const APP_VERSION = 'v2.4.1';
 export const APP_BUILD_DATE = '2026-10-18';
-export const APP_CODENAME = 'Dual-Scope Licensing Update';
+export const APP_CODENAME = 'Studio Scrollable Layout & Global Footer Restoration';
 export const APP_CORE_STACK = [
   { name: 'Frontend', value: 'Next.js 14 App Router' },
   { name: '3D Preview', value: 'Three.js & Canvas' },
@@ -31,12 +31,36 @@ export const APP_CORE_STACK = [
 
 export const CHANGELOG_DATA: ReleaseMilestone[] = [
   {
+    version: 'v2.4.1',
+    date: '2026-10-18',
+    codename: 'Studio Layout & Footer Restoration',
+    summary: 'เปิดให้แสดง Footer ทั่วทั้งแพลตฟอร์ม และปรับแต่งเลย์เอาต์หน้า Studio ให้เลื่อนดูเนื้อหาและส่วนท้ายเว็บได้ราบรื่น พร้อมแถบเครื่องมือแบบ sticky top-16',
+    isLatest: true,
+    highlightBadge: 'เวอร์ชันล่าสุด',
+    changes: [
+      {
+        type: 'ui',
+        text: 'เปิดการแสดงผล Platform Footer ในหน้า 3D Studio',
+        details: 'นำ Footer กลับมาแสดงผลอย่างถูกต้องที่ด้านล่างสุดของหน้าจอในทุกหน้า',
+      },
+      {
+        type: 'ui',
+        text: 'ปรับเลย์เอาต์หน้า Studio ให้เลื่อนดู (Scrollable) ได้เป็นธรรมชาติ',
+        details: 'เปลี่ยน wrapper เป็น min-h-[calc(100vh-4rem)] รองรับการเลื่อนหน้าจอลงไปยังส่วนล่างของหน้าเว็บ',
+      },
+      {
+        type: 'fix',
+        text: 'แถบเครื่องมือ Studio Toolbar ติดหนึบที่ top-16 ไม่ซ้อนทับ Navbar หรือ Canvas header',
+        details: 'กำหนด sticky top-16 z-30 เพื่อให้แถบเครื่องมือคงอยู่ใต้ Navbar (h-16 z-50) เสมอ ป้องกันการทับซ้อนกับ 2D Canvas และ Back Surface',
+      },
+    ],
+  },
+  {
     version: 'v2.4.0',
     date: '2026-10-18',
     codename: 'Dual-Scope Licensing',
     summary: 'เพิ่มตัวเลือกลิขสิทธิ์แบบต่อชิ้นหรือเหมาขาดตลอดชีพ พร้อมคำนวณราคาสุทธิที่หน้าชำระเงิน',
-    isLatest: true,
-    highlightBadge: 'เวอร์ชันล่าสุด',
+    isLatest: false,
     changes: [
       {
         type: 'feat',

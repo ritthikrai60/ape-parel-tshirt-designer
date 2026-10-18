@@ -250,7 +250,7 @@ export default async function StudioNewPage({ searchParams }: StudioNewPageProps
   }
 
   return (
-    <div className="flex-1 flex flex-col w-full h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="flex-1 flex flex-col w-full min-h-[calc(100vh-4rem)]">
       <DesignStudioClient
         initialGarments={garments}
         initialArtworks={artworks}
