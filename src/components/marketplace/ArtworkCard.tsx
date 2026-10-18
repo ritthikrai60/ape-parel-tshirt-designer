@@ -2,8 +2,15 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ShieldCheck, Eye, Star, Heart, Crown } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Eye, Star, Heart, Crown, Shirt } from 'lucide-react';
 import { useSettings } from '@/components/providers/SettingsProvider';
+import {
+  FabricColor,
+  FABRICS,
+  getRecommendedFabric,
+  TShirtSilhouette,
+  FabricSwatchPicker,
+} from './fabricUtils';
 
 export interface MarketplaceArtworkDTO {
   id: string;
@@ -64,7 +71,11 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({
   const [bookmarked, setBookmarked] = useState(isBookmarked || !!artwork.isFavorited);
   const [likesCount, setLikesCount] = useState(artwork.favoriteCount || 0);
   const [imgError, setImgError] = useState(false);
+  const [fabric, setFabric] = useState<FabricColor>(() =>
+    getRecommendedFabric(artwork.title, artwork.tags)
+  );
 
+  const activeFabric = FABRICS[fabric];
   const normalizedCategory = (artwork.category || 'ILLUSTRATION').toUpperCase();
   const categoryInfo = CATEGORY_STYLES[normalizedCategory] || {
     label: artwork.category,
@@ -104,9 +115,23 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({
       onMouseLeave={() => setHovered(false)}
     >
       {/* ── Artwork Preview (3:4 aspect) ── */}
-      <div className="relative w-full bg-[#131718] overflow-hidden" style={{ aspectRatio: '3/4' }}>
+      <div
+        className={`relative w-full ${activeFabric.bgClass} overflow-hidden transition-colors duration-300`}
+        style={{ aspectRatio: '3/4' }}
+      >
         {/* Grid pattern */}
-        <div className="absolute inset-0 opacity-[0.12] bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px]" />
+        <div
+          className="absolute inset-0 opacity-[0.09]"
+          style={{
+            backgroundImage: `radial-gradient(${activeFabric.isDark ? '#ffffff' : '#000000'} 1px, transparent 1px)`,
+            backgroundSize: '16px 16px',
+          }}
+        />
+
+        {/* T-Shirt Silhouette Outline */}
+        <div className="absolute inset-2 flex items-center justify-center pointer-events-none opacity-40 transition-opacity duration-300">
+          <TShirtSilhouette strokeColor={activeFabric.strokeColor} />
+        </div>
 
         {/* Artwork image */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -114,7 +139,11 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({
           src={imgError ? `https://api.dicebear.com/8.x/shapes/svg?seed=${encodeURIComponent(artwork.title)}&backgroundColor=222729` : artwork.previewUrl}
           alt={artwork.title}
           onError={() => setImgError(true)}
-          className="relative w-full h-full object-contain p-8 drop-shadow-lg transition-transform duration-500 group-hover:scale-105"
+          className={`relative w-full h-full object-contain p-8 transition-transform duration-500 group-hover:scale-105 ${
+            activeFabric.isDark
+              ? 'drop-shadow-[0_4px_16px_rgba(255,255,255,0.16)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]'
+              : 'drop-shadow-[0_4px_16px_rgba(0,0,0,0.18)]'
+          }`}
           loading="lazy"
         />
 
@@ -151,6 +180,11 @@ export const ArtworkCard: React.FC<ArtworkCardProps> = ({
             <Heart className={`w-3 h-3 ${bookmarked ? 'fill-current' : ''}`} />
             {likesCount > 0 && <span>{likesCount}</span>}
           </button>
+        </div>
+
+        {/* Bottom-left: Mini Fabric Switcher */}
+        <div className="absolute bottom-3 left-3 z-10 opacity-80 group-hover:opacity-100 transition-opacity">
+          <FabricSwatchPicker current={fabric} onChange={setFabric} />
         </div>
 
         {/* ── Hover Overlay: Slide-up panel ── */}

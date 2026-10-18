@@ -2,9 +2,16 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Shield, Layers, Sparkles, Users } from 'lucide-react';
+import { ArrowRight, Shield, Layers, Sparkles, Users, Shirt } from 'lucide-react';
 import { MarketplaceArtworkDTO } from './ArtworkCard';
 import { useSettings } from '@/components/providers/SettingsProvider';
+import {
+  FabricColor,
+  FABRICS,
+  getRecommendedFabric,
+  TShirtSilhouette,
+  FabricSwatchPicker,
+} from './fabricUtils';
 
 export interface DynamicBannerData {
   id?: string;
@@ -31,6 +38,11 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   campaignBanner,
 }) => {
   const { formatPrice } = useSettings();
+  const [fabric, setFabric] = React.useState<FabricColor>(() =>
+    featuredArtwork ? getRecommendedFabric(featuredArtwork.title, featuredArtwork.tags) : 'black'
+  );
+  const activeFabric = FABRICS[fabric];
+
   return (
     <section className="relative w-full bg-paper border-b border-borderCol overflow-hidden">
       {/* Subtle grain texture overlay */}
@@ -116,26 +128,48 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             {/* T-Shirt mockup area */}
             <div className="relative z-10 w-full max-w-sm">
               {/* Mockup frame */}
-              <div className="relative bg-[#1a1e20] rounded-2xl overflow-hidden shadow-2xl border border-white/10 aspect-[3/4] flex items-center justify-center p-8">
+              <div
+                className={`relative ${activeFabric.bgClass} rounded-2xl overflow-hidden shadow-2xl border border-borderCol/60 aspect-[3/4] flex items-center justify-center p-8 transition-colors duration-300`}
+              >
                 {/* Grid pattern */}
-                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px]" />
+                <div
+                  className="absolute inset-0 opacity-[0.09] pointer-events-none"
+                  style={{
+                    backgroundImage: `radial-gradient(${activeFabric.isDark ? '#ffffff' : '#000000'} 1px, transparent 1px)`,
+                    backgroundSize: '20px 20px',
+                  }}
+                />
+
+                {/* T-Shirt Silhouette */}
+                <div className="absolute inset-4 flex items-center justify-center pointer-events-none opacity-45 transition-opacity">
+                  <TShirtSilhouette strokeColor={activeFabric.strokeColor} />
+                </div>
 
                 {featuredArtwork ? (
-                  <div className="relative flex flex-col items-center gap-4 w-full">
+                  <div className="relative flex flex-col items-center gap-4 w-full h-full justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={featuredArtwork.previewUrl}
                       alt={featuredArtwork.title}
-                      className="w-48 h-48 object-contain drop-shadow-xl"
+                      className={`w-52 h-52 object-contain transition-all duration-300 ${
+                        activeFabric.isDark
+                          ? 'drop-shadow-[0_8px_24px_rgba(255,255,255,0.18)] drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]'
+                          : 'drop-shadow-[0_8px_24px_rgba(0,0,0,0.20)]'
+                      }`}
                     />
                     {/* Featured badge */}
-                    <div className="absolute top-2 right-2 font-mono text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-warm/90 text-ink font-bold">
-                      Featured
+                    <div className="absolute top-0 left-0 font-mono text-[9px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-warm text-ink font-black shadow-xs">
+                      Curated Drop
+                    </div>
+
+                    {/* Fabric Switcher */}
+                    <div className="absolute top-0 right-0">
+                      <FabricSwatchPicker current={fabric} onChange={setFabric} size="sm" />
                     </div>
                   </div>
                 ) : (
                   /* Placeholder design */
-                  <div className="flex flex-col items-center gap-3 text-white/40">
+                  <div className="flex flex-col items-center gap-3 text-mutedGray">
                     <Sparkles className="w-16 h-16 stroke-[1]" />
                     <span className="font-mono text-xs uppercase tracking-widest">Creator Artwork</span>
                   </div>

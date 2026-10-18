@@ -5,6 +5,13 @@ import Link from 'next/link';
 import { X, ArrowRight, ShieldCheck, Tag, Bookmark } from 'lucide-react';
 import { MarketplaceArtworkDTO } from './ArtworkCard';
 import { useSettings } from '@/components/providers/SettingsProvider';
+import {
+  FabricColor,
+  FABRICS,
+  getRecommendedFabric,
+  TShirtSilhouette,
+  FabricSwatchPicker,
+} from './fabricUtils';
 
 interface ArtworkPreviewModalProps {
   artwork: MarketplaceArtworkDTO;
@@ -28,6 +35,12 @@ export const ArtworkPreviewModal: React.FC<ArtworkPreviewModalProps> = ({
   onBookmark,
 }) => {
   const { formatPrice, t } = useSettings();
+  const [imgError, setImgError] = React.useState(false);
+  const [fabric, setFabric] = React.useState<FabricColor>(() =>
+    getRecommendedFabric(artwork.title, artwork.tags)
+  );
+  const activeFabric = FABRICS[fabric];
+
   const normalizedCategory = (artwork.category || 'ILLUSTRATION').toUpperCase();
   const categoryInfo = CATEGORY_STYLES[normalizedCategory] || {
     label: artwork.category,
@@ -71,18 +84,48 @@ export const ArtworkPreviewModal: React.FC<ArtworkPreviewModalProps> = ({
       {/* Modal Panel */}
       <div className="relative z-10 w-full max-w-3xl bg-paper rounded-2xl overflow-hidden shadow-2xl border border-borderCol flex flex-col md:flex-row max-h-[90vh]">
         {/* Left: Artwork Preview */}
-        <div className="relative w-full md:w-[45%] bg-[#131718] flex items-center justify-center p-10 flex-none">
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px]" />
+        <div
+          className={`relative w-full md:w-[45%] ${activeFabric.bgClass} flex items-center justify-center p-10 flex-none transition-colors duration-300 overflow-hidden`}
+        >
+          {/* Fabric grid */}
+          <div
+            className="absolute inset-0 opacity-[0.09] pointer-events-none"
+            style={{
+              backgroundImage: `radial-gradient(${activeFabric.isDark ? '#ffffff' : '#000000'} 1px, transparent 1px)`,
+              backgroundSize: '16px 16px',
+            }}
+          />
+
+          {/* T-Shirt Silhouette */}
+          <div className="absolute inset-4 flex items-center justify-center pointer-events-none opacity-40 transition-opacity">
+            <TShirtSilhouette strokeColor={activeFabric.strokeColor} />
+          </div>
+
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={artwork.previewUrl}
+            src={
+              imgError
+                ? `https://api.dicebear.com/8.x/shapes/svg?seed=${encodeURIComponent(artwork.title)}&backgroundColor=222729`
+                : artwork.previewUrl
+            }
             alt={artwork.title}
-            className="relative max-h-72 max-w-full object-contain drop-shadow-xl"
+            onError={() => setImgError(true)}
+            className={`relative max-h-72 max-w-full object-contain transition-all duration-300 ${
+              activeFabric.isDark
+                ? 'drop-shadow-[0_8px_24px_rgba(255,255,255,0.18)] drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]'
+                : 'drop-shadow-[0_8px_24px_rgba(0,0,0,0.18)]'
+            }`}
           />
+
           {/* Category badge */}
           <span className={`absolute top-3 left-3 font-mono text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${categoryInfo.badgeClass}`}>
             {categoryInfo.label}
           </span>
+
+          {/* Fabric Switcher in Modal */}
+          <div className="absolute bottom-3 left-3 z-10">
+            <FabricSwatchPicker current={fabric} onChange={setFabric} size="sm" />
+          </div>
         </div>
 
         {/* Right: Details */}
