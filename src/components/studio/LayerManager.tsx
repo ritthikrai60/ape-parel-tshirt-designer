@@ -12,7 +12,9 @@ import {
   RotateCw,
   Crown,
   Tag,
+  Briefcase,
 } from 'lucide-react';
+import { getLicenseDisplayInfo } from '@/lib/licenseUtils';
 
 export interface LayerManagerProps {
   surface: 'FRONT' | 'BACK';
@@ -297,7 +299,7 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
                 <div className="grid grid-cols-2 gap-1.5">
                   {selectedArtwork.licenseOptions.map((opt) => {
                     const isSelected = selectedElement.licenseOptionId === opt.id;
-                    const isUnlimited = opt.scope === 'UNLIMITED';
+                    const info = getLicenseDisplayInfo(opt, 1);
 
                     return (
                       <button
@@ -317,15 +319,20 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
                       >
                         <div className="flex items-center justify-between w-full mb-1">
                           <span className="text-[10px] font-mono text-ink font-bold flex items-center gap-1">
-                            {isUnlimited ? (
+                            {info.isUnlimited ? (
                               <>
                                 <Crown className="w-3 h-3 text-amber-600" />
-                                <span>ตลอดชีพ</span>
+                                <span>{info.badge}</span>
+                              </>
+                            ) : info.badge === 'เชิงพาณิชย์' ? (
+                              <>
+                                <Briefcase className="w-3 h-3 text-emerald-600" />
+                                <span>{info.badge}</span>
                               </>
                             ) : (
                               <>
                                 <Tag className="w-3 h-3 text-ink" />
-                                <span>รายชิ้น</span>
+                                <span>{info.badge}</span>
                               </>
                             )}
                           </span>
@@ -333,8 +340,8 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
                             ฿{opt.price}
                           </span>
                         </div>
-                        <span className="text-[9px] font-mono text-mutedGray">
-                          {isUnlimited ? 'ซื้อขาดเข้า Vault' : 'คิดตามจำนวนตัว'}
+                        <span className="text-[9px] font-mono text-mutedGray truncate max-w-full" title={info.description}>
+                          {info.isUnlimited ? 'ซื้อขาดเข้า Vault' : opt.name || 'คิดตามจำนวนตัว'}
                         </span>
                       </button>
                     );

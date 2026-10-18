@@ -228,13 +228,6 @@ async function main() {
             scope: 'PER_GARMENT',
             terms: 'Single production unit print license with creator attribution.',
           },
-          {
-            name: 'Limited Commercial Run',
-            price: 80,
-            commercialUse: true,
-            scope: 'PER_GARMENT',
-            terms: 'Commercial production license for small batch releases up to 50 units.',
-          },
         ],
       },
     },

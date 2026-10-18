@@ -53,7 +53,9 @@ import {
   UserCheck,
   Crown,
   Tag,
+  Briefcase,
 } from 'lucide-react';
+import { getLicenseDisplayInfo } from '@/lib/licenseUtils';
 
 export interface SupplierSummaryDTO {
   id: string;
@@ -1788,7 +1790,7 @@ export const DesignStudioClient: React.FC<DesignStudioClientProps> = ({
                                 <div className="grid grid-cols-2 gap-1.5 pt-0.5">
                                   {licenseOptions.map((opt) => {
                                     const isSelected = el.licenseOptionId === opt.id;
-                                    const isUnlimited = opt.scope === 'UNLIMITED';
+                                    const info = getLicenseDisplayInfo(opt, quantity);
 
                                     return (
                                       <button
@@ -1802,27 +1804,30 @@ export const DesignStudioClient: React.FC<DesignStudioClientProps> = ({
                                         }`}
                                       >
                                         <div className="flex items-center justify-between w-full mb-0.5">
-                                          <span className="text-[10px] font-mono text-ink flex items-center gap-1">
-                                            {isUnlimited ? (
+                                          <span className="text-[10px] font-mono text-ink flex items-center gap-1 font-bold">
+                                            {info.isUnlimited ? (
                                               <>
                                                 <Crown className="w-3 h-3 text-amber-600" />
-                                                <span>ตลอดชีพ</span>
+                                                <span>{info.badge}</span>
+                                              </>
+                                            ) : info.badge === 'เชิงพาณิชย์' ? (
+                                              <>
+                                                <Briefcase className="w-3 h-3 text-emerald-600" />
+                                                <span>{info.badge}</span>
                                               </>
                                             ) : (
                                               <>
                                                 <Tag className="w-3 h-3 text-ink" />
-                                                <span>รายชิ้น</span>
+                                                <span>{info.badge}</span>
                                               </>
                                             )}
                                           </span>
                                           <span className="text-xs font-mono text-ink font-bold">
-                                            {isUnlimited ? `฿${opt.price}` : `฿${opt.price}/ตัว`}
+                                            {info.priceFormatted}
                                           </span>
                                         </div>
-                                        <span className="text-[9px] font-mono text-mutedGray">
-                                          {isUnlimited
-                                            ? 'ซื้อขาดถาวร + เข้า Vault'
-                                            : `รวม ฿${opt.price * quantity} (${quantity} ตัว)`}
+                                        <span className="text-[9px] font-mono text-mutedGray truncate max-w-full" title={info.description}>
+                                          {info.description}
                                         </span>
                                       </button>
                                     );
