@@ -6,13 +6,27 @@ import {
   CreditCard,
   User,
   Globe,
-  FileText,
   AlertCircle,
   CheckCircle2,
   Lock,
   Sparkles,
-  Info,
+  QrCode,
+  Building2,
+  Phone,
+  FileCheck,
 } from 'lucide-react';
+import {
+  THAI_BANKS,
+  PayoutMethodType,
+  PromptPayIdType,
+  parsePayoutDetails,
+  buildCanonicalPayoutDetails,
+  validatePayoutInput,
+  formatThaiPhone,
+  formatThaiCitizenId,
+  formatBankAccount,
+  cleanDigits,
+} from '@/lib/payoutUtils';
 
 export interface CreatorProfileSettingsModalProps {
   isOpen: boolean;
@@ -41,10 +55,20 @@ export const CreatorProfileSettingsModal: React.FC<CreatorProfileSettingsModalPr
   creator,
   onProfileUpdated,
 }) => {
+  // Parse initial payout details into structured state
+  const initialParsed = parsePayoutDetails(creator.payoutDetails);
+
   const [displayName, setDisplayName] = useState(creator.displayName || '');
   const [bio, setBio] = useState(creator.bio || '');
   const [website, setWebsite] = useState(creator.website || '');
-  const [payoutDetails, setPayoutDetails] = useState(creator.payoutDetails || '');
+
+  // Structured Financial State
+  const [payoutMethod, setPayoutMethod] = useState<PayoutMethodType>(initialParsed.method);
+  const [promptPayType, setPromptPayType] = useState<PromptPayIdType>(initialParsed.promptPayType || 'PHONE');
+  const [promptPayNumber, setPromptPayNumber] = useState(initialParsed.promptPayNumber || '');
+  const [bankCode, setBankCode] = useState(initialParsed.bankCode || 'KBANK');
+  const [bankAccountNumber, setBankAccountNumber] = useState(initialParsed.bankAccountNumber || '');
+  const [accountName, setAccountName] = useState(initialParsed.accountName || '');
 
   const [activeTab, setActiveTab] = useState<'financial' | 'personal'>('financial');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,6 +76,17 @@ export const CreatorProfileSettingsModal: React.FC<CreatorProfileSettingsModalPr
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handlePromptPayNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = cleanDigits(e.target.value);
+    const maxLen = promptPayType === 'CITIZEN_ID' ? 13 : 10;
+    setPromptPayNumber(raw.slice(0, maxLen));
+  };
+
+  const handleBankAccountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = cleanDigits(e.target.value);
+    setBankAccountNumber(raw.slice(0, 12));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,10 +98,30 @@ export const CreatorProfileSettingsModal: React.FC<CreatorProfileSettingsModalPr
       return;
     }
 
-    if (!payoutDetails.trim() || payoutDetails.trim().length < 5) {
-      setError('กรุณากรอกข้อมูลพร้อมเพย์ หรือเลขที่บัญชีธนาคารให้ถูกต้องครบถ้วน (อย่างน้อย 5 ตัวอักษร)');
+    // Validate structured financial input
+    const financialError = validatePayoutInput({
+      method: payoutMethod,
+      promptPayType,
+      promptPayNumber,
+      bankCode,
+      bankAccountNumber,
+      accountName,
+    });
+
+    if (financialError) {
+      setError(financialError);
       return;
     }
+
+    // Build standard canonical payout string
+    const canonicalPayout = buildCanonicalPayoutDetails({
+      method: payoutMethod,
+      promptPayType,
+      promptPayNumber,
+      bankCode,
+      bankAccountNumber,
+      accountName,
+    });
 
     setIsSubmitting(true);
 
@@ -79,7 +134,7 @@ export const CreatorProfileSettingsModal: React.FC<CreatorProfileSettingsModalPr
           displayName: displayName.trim(),
           bio: bio.trim() || null,
           website: website.trim() || null,
-          payoutDetails: payoutDetails.trim(),
+          payoutDetails: canonicalPayout,
         }),
       });
 
@@ -94,7 +149,7 @@ export const CreatorProfileSettingsModal: React.FC<CreatorProfileSettingsModalPr
         displayName: displayName.trim(),
         bio: bio.trim() || null,
         website: website.trim() || null,
-        payoutDetails: payoutDetails.trim(),
+        payoutDetails: canonicalPayout,
         avatarUrl: creator.avatarUrl,
       });
 
@@ -116,7 +171,7 @@ export const CreatorProfileSettingsModal: React.FC<CreatorProfileSettingsModalPr
       aria-modal="true"
       aria-labelledby="settings-modal-title"
     >
-      <div className="bg-paper border border-borderCol rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-paper border border-borderCol rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-borderCol bg-paper-dark/30">
           <div className="flex items-center space-x-3">
@@ -187,59 +242,194 @@ export const CreatorProfileSettingsModal: React.FC<CreatorProfileSettingsModalPr
           )}
 
           {activeTab === 'financial' && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-warm/10 border border-warm/30 space-y-2">
-                <div className="flex items-center space-x-2 text-ink font-bold text-xs font-mono">
-                  <Lock className="w-4 h-4 text-warm" />
-                  <span>มาตรการความปลอดภัยทางการเงิน (Banking Privacy)</span>
+            <div className="space-y-5">
+              {/* Security Banner */}
+              <div className="p-3.5 rounded-xl bg-warm/10 border border-warm/30 flex items-start space-x-2.5">
+                <Lock className="w-4 h-4 text-warm shrink-0 mt-0.5" />
+                <div className="text-xs text-mutedGray leading-relaxed">
+                  <strong className="text-ink font-mono font-bold block mb-0.5">Banking Privacy Standard</strong>
+                  ข้อมูลบัญชีนี้ถูกเก็บเป็นความลับสูงสุด จะไม่แสดงในหน้าสาธารณะ ใช้สำหรับโอนยอดส่วนแบ่งค่าลิขสิทธิ์ (85% Royalty) และออกเอกสารภาษี 50 ทวิเท่านั้น
                 </div>
-                <p className="text-xs text-mutedGray leading-relaxed">
-                  ข้อมูลบัญชีธนาคารและพร้อมเพย์จะถูกเก็บเป็นความลับสูงสุด จะไม่แสดงในหน้าร้านสาธารณะ (Public Storefront) หรือใน Marketplace Catalog โดยจะใช้สำหรับการโอนเงินส่วนแบ่งลิขสิทธิ์ (85% Royalty Settlement) และเอกสารหักภาษี ณ ที่จ่าย (50 ทวิ) เท่านั้น
-                </p>
               </div>
 
+              {/* Step 1: Select Method Toggle */}
               <div>
-                <label className="block font-mono text-xs uppercase font-bold text-ink mb-1.5">
-                  บัญชีรับเงิน / หมายเลขพร้อมเพย์ (Payout Destination) *
+                <label className="block font-mono text-xs uppercase font-bold text-ink mb-2">
+                  1. เลือกช่องทางการรับเงิน (Payout Method) *
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={payoutDetails}
-                  onChange={(e) => setPayoutDetails(e.target.value)}
-                  placeholder="เช่น PromptPay: 081-234-5678 หรือ KBANK 123-4-56789-0 (ชื่อบัญชี)"
-                  className="w-full px-4 py-2.5 bg-paper border border-borderCol rounded-xl text-xs font-mono text-ink placeholder:text-mutedGray/50 focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm"
-                />
-                <p className="mt-1.5 text-[11px] font-mono text-mutedGray">
-                  รองรับ: เบอร์โทรศัพท์/เลขประจำตัวประชาชนพร้อมเพย์ หรือ บัญชีธนาคารพาณิชย์ในประเทศไทยทุกแห่ง
-                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPayoutMethod('PROMPTPAY')}
+                    className={`p-3.5 rounded-xl border flex items-center space-x-3 text-left transition-all ${
+                      payoutMethod === 'PROMPTPAY'
+                        ? 'border-warm bg-warm/15 shadow-sm'
+                        : 'border-borderCol bg-paper hover:bg-paper-dark'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600/10 text-emerald-700 flex items-center justify-center font-bold">
+                      <QrCode className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="font-sans font-bold text-xs text-ink block">พร้อมเพย์ (PromptPay)</span>
+                      <span className="font-mono text-[10px] text-mutedGray">เบอร์โทรศัพท์ / บัตร ปชช.</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPayoutMethod('BANK_TRANSFER')}
+                    className={`p-3.5 rounded-xl border flex items-center space-x-3 text-left transition-all ${
+                      payoutMethod === 'BANK_TRANSFER'
+                        ? 'border-warm bg-warm/15 shadow-sm'
+                        : 'border-borderCol bg-paper hover:bg-paper-dark'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-blue-600/10 text-blue-700 flex items-center justify-center font-bold">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="font-sans font-bold text-xs text-ink block">บัญชีธนาคารไทย</span>
+                      <span className="font-mono text-[10px] text-mutedGray">โอนเข้าบัญชีธนาคารพาณิชย์</span>
+                    </div>
+                  </button>
+                </div>
               </div>
 
-              {/* Sample quick picks */}
-              <div className="pt-2">
-                <span className="block font-mono text-[11px] text-mutedGray mb-2">
-                  คำแนะนำรูปแบบการกรอก:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
-                  <div
-                    onClick={() => {
-                      if (!payoutDetails) setPayoutDetails('PromptPay: 08x-xxx-xxxx');
-                    }}
-                    className="p-2.5 rounded-lg border border-borderCol bg-paper-dark/30 hover:border-warm/60 cursor-pointer transition-colors"
-                  >
-                    <span className="font-bold text-ink block">พร้อมเพย์มือถือ / ปชช.</span>
-                    <span className="text-[11px] text-mutedGray">PromptPay: 081-xxx-xxxx</span>
+              {/* Step 2: Method Specific Fields */}
+              {payoutMethod === 'PROMPTPAY' ? (
+                <div className="space-y-4 p-4 rounded-xl border border-borderCol bg-paper-dark/20">
+                  <div>
+                    <label className="block font-mono text-xs uppercase font-bold text-ink mb-1.5">
+                      ประเภทบัญชีพร้อมเพย์ *
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center space-x-2 text-xs font-mono cursor-pointer text-ink">
+                        <input
+                          type="radio"
+                          name="promptPayType"
+                          checked={promptPayType === 'PHONE'}
+                          onChange={() => {
+                            setPromptPayType('PHONE');
+                            setPromptPayNumber('');
+                          }}
+                          className="accent-warm"
+                        />
+                        <span>เบอร์โทรศัพท์มือถือ (10 หลัก)</span>
+                      </label>
+                      <label className="flex items-center space-x-2 text-xs font-mono cursor-pointer text-ink">
+                        <input
+                          type="radio"
+                          name="promptPayType"
+                          checked={promptPayType === 'CITIZEN_ID'}
+                          onChange={() => {
+                            setPromptPayType('CITIZEN_ID');
+                            setPromptPayNumber('');
+                          }}
+                          className="accent-warm"
+                        />
+                        <span>เลขบัตรประจำตัวประชาชน (13 หลัก)</span>
+                      </label>
+                    </div>
                   </div>
-                  <div
-                    onClick={() => {
-                      if (!payoutDetails) setPayoutDetails('KBANK: xxx-x-xxxxx-x (ชื่อ-นามสกุล)');
-                    }}
-                    className="p-2.5 rounded-lg border border-borderCol bg-paper-dark/30 hover:border-warm/60 cursor-pointer transition-colors"
-                  >
-                    <span className="font-bold text-ink block">บัญชีธนาคารไทย</span>
-                    <span className="text-[11px] text-mutedGray">SCB/KBANK/BBL: xxx-x-xxxxx-x</span>
+
+                  <div>
+                    <label className="block font-mono text-xs uppercase font-bold text-ink mb-1.5">
+                      {promptPayType === 'PHONE' ? 'หมายเลขโทรศัพท์มือถือ *' : 'เลขประจำตัวประชาชน 13 หลัก *'}
+                    </label>
+                    <div className="relative">
+                      {promptPayType === 'PHONE' ? (
+                        <Phone className="w-4 h-4 text-mutedGray absolute left-3.5 top-3" />
+                      ) : (
+                        <FileCheck className="w-4 h-4 text-mutedGray absolute left-3.5 top-3" />
+                      )}
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        required
+                        value={
+                          promptPayType === 'PHONE'
+                            ? formatThaiPhone(promptPayNumber)
+                            : formatThaiCitizenId(promptPayNumber)
+                        }
+                        onChange={handlePromptPayNumberChange}
+                        placeholder={promptPayType === 'PHONE' ? '081-234-5678' : '1-2345-67890-12-3'}
+                        className="w-full pl-10 pr-4 py-2.5 bg-paper border border-borderCol rounded-xl text-xs font-mono text-ink placeholder:text-mutedGray/50 focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm"
+                      />
+                    </div>
+                    <p className="mt-1.5 text-[11px] font-mono text-mutedGray">
+                      ระบบจะจัดฟอร์แม็ตและตรวจสอบความถูกต้องอัตโนมัติ เพื่อสร้าง PromptPay QR Code ที่ถูกต้อง
+                    </p>
                   </div>
                 </div>
+              ) : (
+                <div className="space-y-4 p-4 rounded-xl border border-borderCol bg-paper-dark/20">
+                  <div>
+                    <label className="block font-mono text-xs uppercase font-bold text-ink mb-1.5">
+                      ธนาคารพาณิชย์ *
+                    </label>
+                    <select
+                      value={bankCode}
+                      onChange={(e) => setBankCode(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-paper border border-borderCol rounded-xl text-xs font-mono text-ink focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm"
+                    >
+                      {THAI_BANKS.map((b) => (
+                        <option key={b.code} value={b.code}>
+                          {b.nameTh} - {b.nameEn}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-mono text-xs uppercase font-bold text-ink mb-1.5">
+                      เลขที่บัญชีธนาคาร (10-12 หลัก) *
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      value={formatBankAccount(bankAccountNumber)}
+                      onChange={handleBankAccountChange}
+                      placeholder="123-4-56789-0"
+                      className="w-full px-3.5 py-2.5 bg-paper border border-borderCol rounded-xl text-xs font-mono text-ink placeholder:text-mutedGray/50 focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-mono text-xs uppercase font-bold text-ink mb-1.5">
+                      ชื่อ-นามสกุล เจ้าของบัญชี (Account Name) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={accountName}
+                      onChange={(e) => setAccountName(e.target.value)}
+                      placeholder="เช่น นาย สมชาย ใจดี หรือ SOMCHAI JAIDEE"
+                      className="w-full px-3.5 py-2.5 bg-paper border border-borderCol rounded-xl text-xs font-mono text-ink placeholder:text-mutedGray/50 focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm"
+                    />
+                    <p className="mt-1 text-[11px] font-mono text-mutedGray">
+                      ต้องตรงกับหน้าสมุดบัญชีธนาคารเพื่อความถูกต้องในการโอนเงินและออกหนังสือหักภาษี ณ ที่จ่าย (50 ทวิ)
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Canonical Preview Box */}
+              <div className="p-3 bg-paper-dark/40 rounded-xl border border-borderCol text-xs font-mono">
+                <span className="text-mutedGray block text-[11px] uppercase mb-1">
+                  ตัวอย่างข้อมูลที่จะบันทึกเข้าระบบการเงิน:
+                </span>
+                <span className="text-ink font-bold font-mono">
+                  {buildCanonicalPayoutDetails({
+                    method: payoutMethod,
+                    promptPayType,
+                    promptPayNumber,
+                    bankCode,
+                    bankAccountNumber,
+                    accountName,
+                  })}
+                </span>
               </div>
             </div>
           )}
