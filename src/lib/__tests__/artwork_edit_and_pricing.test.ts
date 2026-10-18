@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
@@ -260,5 +260,29 @@ describe('Artwork Edit, License Pricing In-Place Update & Strict Moderation Suit
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('Validation Error');
+  });
+
+  afterAll(async () => {
+    try {
+      await prisma.auditEvent.deleteMany({
+        where: { entityId: { startsWith: 'cmvd' } },
+      });
+      await prisma.userArtworkLicense.deleteMany({
+        where: { certificateNumber: { startsWith: 'LIC-HIST-' } },
+      });
+      await prisma.licenseOption.deleteMany({
+        where: { artwork: { title: { in: ['Original Cyber Ape Design', 'Renamed Cyber Gorilla 2026'] } } },
+      });
+      await prisma.artwork.deleteMany({
+        where: { title: { in: ['Original Cyber Ape Design', 'Renamed Cyber Gorilla 2026'] } },
+      });
+      await prisma.creatorProfile.deleteMany({
+        where: { slug: { startsWith: 'ape-studio-' } },
+      });
+    } catch {
+      // Ignore cleanup error
+    } finally {
+      await prisma.$disconnect();
+    }
   });
 });

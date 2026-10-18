@@ -127,6 +127,9 @@ export const LayerManager: React.FC<LayerManagerProps> = ({
                   <img
                     src={el.previewUrl}
                     alt={el.title}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/8.x/shapes/svg?seed=${encodeURIComponent(el.title)}&backgroundColor=222729`;
+                    }}
                     className="w-8 h-8 rounded bg-ink/5 object-contain p-0.5 border border-borderCol"
                   />
                   <div className="min-w-0">

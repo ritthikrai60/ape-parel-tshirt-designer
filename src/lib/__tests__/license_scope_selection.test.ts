@@ -145,7 +145,30 @@ describe('Dual License Scope Selection & Checkout Execution Suite', () => {
   });
 
   afterAll(async () => {
-    await prisma.$disconnect();
+    try {
+      await prisma.royaltyObligation.deleteMany({
+        where: { artwork: { title: 'Cyber Ronin Dual Scope' } },
+      });
+      await prisma.userArtworkLicense.deleteMany({
+        where: { artwork: { title: 'Cyber Ronin Dual Scope' } },
+      });
+      await prisma.licenseOption.deleteMany({
+        where: { artwork: { title: 'Cyber Ronin Dual Scope' } },
+      });
+      await prisma.artwork.deleteMany({
+        where: { title: 'Cyber Ronin Dual Scope' },
+      });
+      await prisma.order.deleteMany({
+        where: { shippingName: 'Dual Scope Tester' },
+      });
+      await prisma.creatorProfile.deleteMany({
+        where: { slug: { startsWith: 'vector-master-' } },
+      });
+    } catch {
+      // Ignore cleanup error in test tear-down
+    } finally {
+      await prisma.$disconnect();
+    }
   });
 
   it('1. calculates Per-Garment license proportional to garment quantity', async () => {

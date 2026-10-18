@@ -590,6 +590,9 @@ export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
                           <img
                             src={art.previewUrl}
                             alt={art.title}
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/8.x/shapes/svg?seed=${encodeURIComponent(art.title)}&backgroundColor=222729`;
+                            }}
                             className="w-10 h-10 rounded border border-borderCol object-contain bg-paper-dark"
                           />
                           <div>
@@ -801,6 +804,9 @@ export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
                 <img
                   src={editingArtwork.previewUrl}
                   alt={editingArtwork.title}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/8.x/shapes/svg?seed=${encodeURIComponent(editingArtwork.title)}&backgroundColor=222729`;
+                  }}
                   className="w-14 h-14 rounded-lg border border-borderCol object-contain bg-paper-dark shrink-0"
                 />
                 <div className="min-w-0 flex-1">

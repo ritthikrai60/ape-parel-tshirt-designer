@@ -1761,6 +1761,9 @@ export const DesignStudioClient: React.FC<DesignStudioClientProps> = ({
                                   <img
                                     src={el.previewUrl}
                                     alt={el.title}
+                                    onError={(e) => {
+                                      (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/8.x/shapes/svg?seed=${encodeURIComponent(el.title)}&backgroundColor=222729`;
+                                    }}
                                     className="w-7 h-7 rounded border border-borderCol object-contain bg-paper p-0.5"
                                   />
                                   <div className="min-w-0">
