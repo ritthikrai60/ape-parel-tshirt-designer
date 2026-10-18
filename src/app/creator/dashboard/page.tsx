@@ -113,14 +113,16 @@ export default async function CreatorDashboardPage({
         select: {
           id: true,
           title: true,
+          description: true,
+          category: true,
           previewUrl: true,
           status: true,
           moderationStatus: true,
           moderationReason: true,
           moderatedAt: true,
           licenseOptions: {
-            select: { price: true },
-            take: 1,
+            select: { id: true, name: true, price: true, scope: true },
+            orderBy: { price: 'asc' },
           },
           createdAt: true,
         },
