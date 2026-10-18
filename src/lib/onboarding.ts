@@ -375,3 +375,127 @@ export async function getUserRoleProfiles(userId: string) {
       : null,
   };
 }
+
+export interface UpdateCreatorProfileInput {
+  creatorId: string;
+  actorUserId: string;
+  displayName?: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  website?: string | null;
+  payoutDetails?: string;
+}
+
+/**
+ * Updates an existing CreatorProfile, with permission check, input validation,
+ * and immutable audit event recording.
+ */
+export async function updateCreatorProfile(input: UpdateCreatorProfileInput) {
+  if (!input || !input.creatorId || !input.actorUserId) {
+    throw new Error('creatorId and actorUserId are required');
+  }
+
+  // 1. Fetch creator profile
+  const creator = await prisma.creatorProfile.findUnique({
+    where: { id: input.creatorId },
+    include: { user: true },
+  });
+
+  if (!creator) {
+    throw new Error('Creator profile not found');
+  }
+
+  // 2. Authorization check: must be owner or ADMIN
+  const isOwner = creator.userId === input.actorUserId;
+  const actorUser = await prisma.user.findUnique({
+    where: { id: input.actorUserId },
+    select: { id: true, role: true },
+  });
+
+  const isAdmin = actorUser?.role === 'ADMIN';
+
+  if (!isOwner && !isAdmin) {
+    throw new Error('Unauthorized: You do not have permission to edit this creator profile');
+  }
+
+  // 3. Validate fields if provided
+  const updateData: {
+    displayName?: string;
+    bio?: string | null;
+    avatarUrl?: string | null;
+    website?: string | null;
+    payoutDetails?: string;
+  } = {};
+
+  if (input.displayName !== undefined) {
+    const trimmed = input.displayName.trim();
+    if (trimmed.length < 2) {
+      throw new Error('Display name must be at least 2 characters long');
+    }
+    if (trimmed.length > 100) {
+      throw new Error('Display name cannot exceed 100 characters');
+    }
+    updateData.displayName = trimmed;
+  }
+
+  if (input.bio !== undefined) {
+    updateData.bio = input.bio ? input.bio.trim() : null;
+  }
+
+  if (input.avatarUrl !== undefined) {
+    updateData.avatarUrl = input.avatarUrl ? input.avatarUrl.trim() : null;
+  }
+
+  if (input.website !== undefined) {
+    updateData.website = input.website ? input.website.trim() : null;
+  }
+
+  if (input.payoutDetails !== undefined) {
+    const trimmedPayout = input.payoutDetails.trim();
+    if (trimmedPayout.length < 5) {
+      throw new Error('Valid PromptPay or bank payout details are required (minimum 5 characters)');
+    }
+    if (trimmedPayout.length > 255) {
+      throw new Error('Payout details cannot exceed 255 characters');
+    }
+    updateData.payoutDetails = trimmedPayout;
+  }
+
+  // 4. Atomic update with audit logging
+  return await prisma.$transaction(async (tx) => {
+    const updated = await tx.creatorProfile.update({
+      where: { id: creator.id },
+      data: updateData,
+    });
+
+    // If storefront settings exists, sync matching fields
+    try {
+      await tx.creatorStorefrontSettings.updateMany({
+        where: { creatorId: creator.id },
+        data: {
+          bio: updated.bio,
+          avatarUrl: updated.avatarUrl,
+        },
+      });
+    } catch {
+      // storefrontSettings may be optional
+    }
+
+    // Record audit event
+    await tx.auditEvent.create({
+      data: {
+        userId: creator.userId,
+        actorId: input.actorUserId,
+        action: 'CREATOR_PROFILE_UPDATED',
+        entityType: 'CreatorProfile',
+        entityId: creator.id,
+        payload: JSON.stringify({
+          updatedFields: Object.keys(updateData),
+          payoutUpdated: input.payoutDetails !== undefined,
+        }),
+      },
+    });
+
+    return updated;
+  });
+}

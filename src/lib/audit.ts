@@ -47,6 +47,7 @@ export const AuditAction = {
 
   // Creator Storefront & Profile (M3)
   CREATOR_ONBOARDED: 'CREATOR_ONBOARDED',
+  CREATOR_PROFILE_UPDATED: 'CREATOR_PROFILE_UPDATED',
   STOREFRONT_SETTINGS_UPDATED: 'STOREFRONT_SETTINGS_UPDATED',
 
   // Accounting & Financial Reconciliation (M4)

@@ -19,9 +19,11 @@ import {
   Pencil,
   Crown,
   X,
+  Settings,
 } from 'lucide-react';
 import { CreatorLedgerSummary, RoyaltyLedgerEntryDetails } from '@/lib/types';
 import { CreatorOnboardingModal } from './CreatorOnboardingModal';
+import { CreatorProfileSettingsModal } from './CreatorProfileSettingsModal';
 import { NotificationBell } from './NotificationBell';
 
 export interface CreatorOption {
@@ -76,6 +78,12 @@ export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [payoutRefInput, setPayoutRefInput] = useState('');
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(Boolean(needsOnboarding));
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Active creator state for live UI updates
+  const [activeCreatorState, setActiveCreatorState] = useState(
+    allCreators.find((c) => c.slug === currentSlug) || allCreators[0] || null
+  );
 
   // Edit Artwork State
   const [editingArtwork, setEditingArtwork] = useState<CreatorArtworkSummary | null>(null);
@@ -158,7 +166,37 @@ export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
     }
   };
 
-  const currentCreator = allCreators.find((c) => c.slug === currentSlug) || allCreators[0];
+  const currentCreator = activeCreatorState || allCreators.find((c) => c.slug === currentSlug) || allCreators[0];
+
+  const handleProfileUpdated = (updated: {
+    displayName: string;
+    bio?: string | null;
+    website?: string | null;
+    payoutDetails: string;
+    avatarUrl?: string | null;
+  }) => {
+    setActiveCreatorState((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            displayName: updated.displayName,
+            payoutDetails: updated.payoutDetails,
+            avatarUrl: updated.avatarUrl || prev.avatarUrl,
+          }
+        : null
+    );
+    if (summary) {
+      setSummary((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              displayName: updated.displayName,
+              payoutDetails: updated.payoutDetails,
+            }
+          : null
+      );
+    }
+  };
 
   const handleCreatorChange = (newSlug: string) => {
     router.push(`/creator/dashboard?creator=${encodeURIComponent(newSlug)}`);
@@ -288,6 +326,17 @@ export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
             <Receipt className="w-4 h-4 text-warm-dark" />
             <span>Journal & Tax 50 Tawi</span>
           </Link>
+
+          <button
+            type="button"
+            data-testid="creator-settings-btn"
+            onClick={() => setIsSettingsOpen(true)}
+            className="px-3.5 py-2 bg-paper hover:bg-paper-dark border border-borderCol text-ink font-mono text-xs font-bold rounded-lg transition-colors flex items-center space-x-1.5 shadow-sm"
+            title="ตั้งค่าโปรไฟล์ & ข้อมูลบัญชีการเงิน"
+          >
+            <Settings className="w-4 h-4 text-ink" />
+            <span className="hidden sm:inline">Settings</span>
+          </button>
 
           <button
             type="button"
@@ -970,6 +1019,22 @@ export const CreatorDashboardClient: React.FC<CreatorDashboardClientProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Creator Profile & Financial Settings Modal */}
+      {currentCreator && (
+        <CreatorProfileSettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          creator={{
+            id: currentCreator.id,
+            slug: currentCreator.slug,
+            displayName: currentCreator.displayName,
+            avatarUrl: currentCreator.avatarUrl,
+            payoutDetails: currentCreator.payoutDetails,
+          }}
+          onProfileUpdated={handleProfileUpdated}
+        />
       )}
     </div>
   );
