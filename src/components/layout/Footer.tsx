@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Cookie,
   ShieldCheck,
@@ -24,9 +25,15 @@ import { useSettings } from '@/components/providers/SettingsProvider';
 import { APP_VERSION } from '@/lib/version';
 
 export const Footer: React.FC = () => {
+  const pathname = usePathname();
   const [showPreferences, setShowPreferences] = useState(false);
   const [legalModalType, setLegalModalType] = useState<LegalDocType | null>(null);
   const { openSettingsModal, t } = useSettings();
+
+  // Full-bleed studio app should not show platform footer to prevent vertical overflow
+  if (pathname?.startsWith('/studio')) {
+    return null;
+  }
 
   return (
     <>

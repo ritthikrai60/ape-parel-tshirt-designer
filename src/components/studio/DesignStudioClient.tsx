@@ -1123,7 +1123,7 @@ export const DesignStudioClient: React.FC<DesignStudioClientProps> = ({
   return (
     <div className="flex-1 flex flex-col w-full h-full max-h-full overflow-hidden bg-paper">
       {/* Studio Toolbar Header */}
-      <div className="shrink-0 border-b border-borderCol bg-paper-light/90 backdrop-blur px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+      <div className="sticky top-0 z-30 shrink-0 border-b border-borderCol bg-paper-light/95 backdrop-blur px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
         {/* Left: Garment Name & Benchmark Preset Button */}
         <div className="flex items-center space-x-3">
           <div className="flex flex-col">
@@ -1281,12 +1281,15 @@ export const DesignStudioClient: React.FC<DesignStudioClientProps> = ({
                     : 'border-b lg:border-b-0 lg:border-r border-borderCol'
                 }`}
               >
-                <div className="w-full flex justify-between items-center mb-1.5 px-2 shrink-0">
-                  <span className="font-mono text-[11px] uppercase tracking-wider text-mutedGray">
-                    2D Canvas &bull; {activeSurface} Surface
-                  </span>
-                  <span className="font-mono text-[10px] text-mutedGray">
-                    Full-bleed design area
+                <div className="w-full flex justify-between items-center mb-2 px-3 py-1 bg-paper/70 rounded-lg border border-borderCol/50 shrink-0">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2 h-2 rounded-full bg-warm inline-block animate-pulse" />
+                    <span className="font-mono text-[11px] uppercase tracking-wider text-ink font-bold">
+                      2D Canvas &bull; {activeSurface} Surface
+                    </span>
+                  </div>
+                  <span className="font-mono text-[10px] text-mutedGray hidden sm:inline">
+                    Full-bleed printable zone (35&times;45 cm)
                   </span>
                 </div>
 
