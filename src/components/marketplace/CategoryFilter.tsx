@@ -7,6 +7,7 @@ import { ArtworkPreviewModal } from './ArtworkPreviewModal';
 
 export const CATEGORY_TABS = [
   { key: 'ALL', label: 'All' },
+  { key: 'LATEST', label: '⚡ Latest Art' },
   { key: 'ILLUSTRATION', label: 'Illustration' },
   { key: 'MASCOT', label: 'Mascot' },
   { key: 'TYPOGRAPHY', label: 'Typography' },
@@ -273,7 +274,10 @@ export const MarketplaceCatalog: React.FC<MarketplaceCatalogProps> = ({ initialA
     return initialArtworks
       .filter((art) => {
         const normCat = (art.category || '').toUpperCase();
-        const matchesCategory = selectedCategory === 'ALL' || normCat === selectedCategory;
+        const matchesCategory =
+          selectedCategory === 'ALL' ||
+          selectedCategory === 'LATEST' ||
+          normCat === selectedCategory;
 
         const q = searchQuery.toLowerCase().trim();
         const matchesSearch =
@@ -289,6 +293,9 @@ export const MarketplaceCatalog: React.FC<MarketplaceCatalogProps> = ({ initialA
         return matchesCategory && matchesSearch && matchesPrice;
       })
       .sort((a, b) => {
+        if (selectedCategory === 'LATEST') {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
         if (sortBy === 'most-liked') return (b.favoriteCount || 0) - (a.favoriteCount || 0);
         if (sortBy === 'rating-desc') return (b.averageRating || 0) - (a.averageRating || 0);
         if (sortBy === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -301,7 +308,10 @@ export const MarketplaceCatalog: React.FC<MarketplaceCatalogProps> = ({ initialA
 
   // Category counts
   const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: initialArtworks.length };
+    const counts: Record<string, number> = {
+      ALL: initialArtworks.length,
+      LATEST: initialArtworks.length,
+    };
     for (const art of initialArtworks) {
       const cat = (art.category || 'ILLUSTRATION').toUpperCase();
       counts[cat] = (counts[cat] || 0) + 1;

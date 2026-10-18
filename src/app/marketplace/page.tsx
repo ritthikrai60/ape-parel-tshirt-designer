@@ -11,6 +11,7 @@ import { MarketplaceArtworkDTO } from '@/components/marketplace/ArtworkCard';
 import { MarketplaceCatalog } from '@/components/marketplace/CategoryFilter';
 import { HeroBanner } from '@/components/marketplace/HeroBanner';
 import { FeaturedCarousel } from '@/components/marketplace/FeaturedCarousel';
+import { LatestArtSection } from '@/components/marketplace/LatestArtSection';
 import { CreatorSpotlight } from '@/components/marketplace/CreatorSpotlight';
 
 export const dynamic = 'force-dynamic';
@@ -272,6 +273,11 @@ export default async function MarketplacePage() {
   // Trending = up to 8 artworks for carousel
   const trendingArtworks = artworks.slice(0, 8);
 
+  // Latest Art = sorted by newest createdAt first (up to 8 artworks)
+  const latestArtworks = [...artworks]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 8);
+
   return (
     <div className="flex-1 flex flex-col w-full bg-paper">
       {/* ── Hero Banner ── */}
@@ -285,6 +291,9 @@ export default async function MarketplacePage() {
 
       {/* ── Featured / Trending Carousel ── */}
       <FeaturedCarousel artworks={trendingArtworks} />
+
+      {/* ── Latest Art Showcase ── */}
+      <LatestArtSection artworks={latestArtworks} />
 
       {/* ── Creator Spotlight ── */}
       <CreatorSpotlight artworks={artworks} />

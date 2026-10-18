@@ -11,6 +11,8 @@ import {
   Sparkles,
   Crown,
   CheckCircle2,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { MarketplaceArtworkDTO } from './ArtworkCard';
 import { useSettings } from '@/components/providers/SettingsProvider';
@@ -203,10 +205,45 @@ const TrendingCard: React.FC<{ artwork: MarketplaceArtworkDTO; index: number }> 
 
 export const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ artworks }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isAutoPlay, setIsAutoPlay] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
+  const directionRef = useRef<'right' | 'left'>('right');
+
+  // Perpetual smooth oscillating auto-scroll (moves left/right back-and-forth)
+  React.useEffect(() => {
+    if (!isAutoPlay || isHovered) return;
+
+    const interval = setInterval(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+
+      const cardStep = 320;
+      const maxScroll = el.scrollWidth - el.clientWidth;
+
+      if (directionRef.current === 'right') {
+        if (el.scrollLeft + cardStep >= maxScroll - 15) {
+          directionRef.current = 'left';
+          el.scrollBy({ left: -cardStep, behavior: 'smooth' });
+        } else {
+          el.scrollBy({ left: cardStep, behavior: 'smooth' });
+        }
+      } else {
+        if (el.scrollLeft - cardStep <= 15) {
+          directionRef.current = 'right';
+          el.scrollBy({ left: cardStep, behavior: 'smooth' });
+        } else {
+          el.scrollBy({ left: -cardStep, behavior: 'smooth' });
+        }
+      }
+    }, 2800);
+
+    return () => clearInterval(interval);
+  }, [isAutoPlay, isHovered]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return;
     const amount = 340;
+    directionRef.current = direction;
     scrollRef.current.scrollBy({
       left: direction === 'left' ? -amount : amount,
       behavior: 'smooth',
@@ -244,12 +281,36 @@ export const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ artworks }) 
             </div>
 
             <p className="font-mono text-xs text-mutedGray mt-1 max-w-xl">
-              Streetwear badges, typography, and simian mascots surging in customer orders this week. Switch garment fabrics live below.
+              Streetwear badges, typography, and simian mascots surging in customer orders this week. Auto-swiping live across the gallery.
             </p>
           </div>
 
           {/* Navigation Controls */}
           <div className="flex items-center gap-2 self-end sm:self-auto">
+            {/* Auto-scroll toggle badge */}
+            <button
+              onClick={() => setIsAutoPlay((v) => !v)}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-mono font-bold transition-all shadow-xs ${
+                isAutoPlay
+                  ? 'bg-orange-500/10 text-orange-600 border-orange-500/30 hover:bg-orange-500/20'
+                  : 'bg-paper text-mutedGray border-borderCol hover:text-ink'
+              }`}
+              title={isAutoPlay ? 'Click to Pause Auto-Scroll' : 'Click to Resume Auto-Scroll'}
+            >
+              {isAutoPlay ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                  <Pause className="w-3 h-3" />
+                  <span className="hidden sm:inline">Auto-Slide</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3 h-3 fill-current" />
+                  <span className="hidden sm:inline">Play Slide</span>
+                </>
+              )}
+            </button>
+
             <button
               onClick={() => scroll('left')}
               className="w-9 h-9 flex items-center justify-center rounded-xl border border-borderCol bg-paper hover:bg-paper-dark hover:border-ink/50 transition-all shadow-xs"
@@ -267,9 +328,11 @@ export const FeaturedCarousel: React.FC<FeaturedCarouselProps> = ({ artworks }) 
           </div>
         </div>
 
-        {/* ── Scrollable Track ── */}
+        {/* ── Scrollable Track (Pauses on Hover) ── */}
         <div
           ref={scrollRef}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           className="flex gap-5 overflow-x-auto pb-4 pt-1 scrollbar-none scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0"
           style={{ scrollSnapType: 'x mandatory' }}
         >
